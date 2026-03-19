@@ -37,6 +37,12 @@ Observed behavior in the current playback:
 - after falling, several robots remain in a near-static state instead of recovering
 - this means the current branch should be treated as a partially successful reproduction, not a final result
 
+Current root-cause hypothesis from environment inspection:
+
+- the Go2 environment disables `illegal_contact` termination during play and training
+- because of that, a robot that falls can remain in the same episode instead of being reset immediately
+- this is currently the clearest explanation for the "fall early and then stay inactive" behavior seen in playback
+
 ## Local Setup Used
 
 The runs on this branch were reproduced with the following local setup:
@@ -75,7 +81,6 @@ python scripts/reinforcement_learning/rsl_rl/train.py \
 
 Artifacts:
 
-- log dir: `logs/rsl_rl/unitree_go2_flat/2026-03-19_14-05-32_go2_flat_baseline`
 - checkpoint: `model_49.pt`
 
 Recovered config summary:
@@ -115,7 +120,6 @@ python scripts/reinforcement_learning/rsl_rl/train.py \
 
 Artifacts:
 
-- log dir: `logs/rsl_rl/unitree_go2_flat/2026-03-19_14-14-07_go2_flat_full`
 - final checkpoint: `model_4999.pt`
 - playback video: `docs/branch_artifacts/go2_flat_full_reproduction_2026-03-19.mp4`
 
@@ -182,7 +186,7 @@ If you want to evaluate a saved checkpoint later, the next step is to add a matc
 - Isaac Sim + Isaac Lab + `robot_lab` training pipeline is working locally
 - Go2 flat training is reproducible on the current machine
 - the 5000-iteration run is not just launching; it actually learns a usable policy trend
-- experiment outputs are structured and saved cleanly under `logs/rsl_rl/unitree_go2_flat`
+- experiment outputs are structured and reproducible on the current branch
 
 ## What Still Needs Improvement
 
@@ -201,6 +205,7 @@ If you want to evaluate a saved checkpoint later, the next step is to add a matc
 - inspect contact penalties and joint penalties if motion quality looks too stiff or too conservative
 - inspect why some robots fall immediately at reset/play time and do not recover afterward
 - verify whether resets, initial state sampling, or action smoothing are contributing to the frozen-after-fall behavior
+- re-enable or redesign `illegal_contact` termination for Go2 evaluation so fallen robots do not remain stuck in the same episode
 
 ### Repo-side improvements
 
