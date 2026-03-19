@@ -18,6 +18,24 @@ This branch is for:
 
 This branch is not trying to be a full project introduction. For the original upstream project description, use `main`.
 
+## Current Reproduction Status
+
+Current branch conclusion:
+
+- training is reproducible locally
+- the Go2 flat policy improves during training
+- playback is not yet clean enough to consider the reproduction "solved"
+
+Current playback artifact:
+
+- video: `docs/branch_artifacts/go2_flat_full_reproduction_2026-03-19.mp4`
+
+Observed behavior in the current playback:
+
+- some Go2 instances fall very early
+- after falling, several robots remain in a near-static state instead of recovering
+- this means the current branch should be treated as a partially successful reproduction, not a final result
+
 ## Local Setup Used
 
 The runs on this branch were reproduced with the following local setup:
@@ -98,6 +116,7 @@ Artifacts:
 
 - log dir: `logs/rsl_rl/unitree_go2_flat/2026-03-19_14-14-07_go2_flat_full`
 - final checkpoint: `model_4999.pt`
+- playback video: `docs/branch_artifacts/go2_flat_full_reproduction_2026-03-19.mp4`
 
 Recovered config summary:
 
@@ -122,6 +141,8 @@ Interpretation:
 - the episode length reached the task horizon
 - linear velocity tracking became strong
 - angular velocity tracking improved, but still looks like an area worth tuning
+- successful training metrics do not yet guarantee robust playback quality
+- in the recorded playback, some robots still fall at the beginning and then remain inactive
 
 ## How To Reproduce
 
@@ -170,12 +191,15 @@ If you want to evaluate a saved checkpoint later, the next step is to add a matc
 - inspect whether `track_ang_vel_z_exp` can be improved with reward or command tuning
 - run multiple seeds instead of trusting a single run
 - add `play.py` evaluation and a short video capture step after each major checkpoint
+- compare playback quality using `num_envs=1` versus multi-env playback to separate policy issues from batch-play artifacts
 
 ### Environment-side improvements
 
 - migrate from flat terrain to rough terrain after the flat baseline is stable
 - compare command tracking and fall behavior between flat and rough Go2 tasks
 - inspect contact penalties and joint penalties if motion quality looks too stiff or too conservative
+- inspect why some robots fall immediately at reset/play time and do not recover afterward
+- verify whether resets, initial state sampling, or action smoothing are contributing to the frozen-after-fall behavior
 
 ### Repo-side improvements
 
@@ -205,6 +229,7 @@ At the time of writing, this branch has:
 - a branch-specific README
 - one short Go2 flat verification run
 - one 5000-iteration Go2 flat training run
+- one recorded playback video capturing the current reproduced behavior
 - saved checkpoints and TensorBoard logs for both runs
 
 This branch should be treated as our working notebook for Go2 training, not as a generic upstream project mirror.
