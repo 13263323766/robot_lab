@@ -8,6 +8,10 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
 [![License](https://img.shields.io/badge/license-Apache2.0-yellow.svg)](https://opensource.org/license/apache-2-0)
 
+> [!NOTE]
+> Local branch note for `exp/go2-train`: this branch is intended for Unitree Go2 training experiments,
+> including short verification runs, config tuning, and follow-up Go2 training workflow changes.
+
 ## Overview
 
 **robot_lab** is a RL extension library for robots, based on IsaacLab. It allows you to develop in an isolated environment, outside of the core Isaac Lab repository.
