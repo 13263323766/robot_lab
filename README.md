@@ -66,6 +66,331 @@ use_robot_lab
 
 `use_robot_lab` does the same and then changes into this repository root.
 
+## Current Configuration Snapshot
+
+This section records the current baseline configuration before we start modifying the environment.
+
+Primary reference target:
+
+- rough-terrain Go2 training environment
+- task id: `RobotLab-Isaac-Velocity-Rough-Unitree-Go2-v0`
+- flat task is treated as a derived variant of the same setup
+
+### 1. Scene and simulation
+
+Inherited base environment settings:
+
+- scene type: manager-based RL environment
+- default environment count: `4096`
+- default env spacing: `2.5`
+- simulation dt: `0.005`
+- decimation: `4`
+- environment step dt: `0.02`
+- episode length: `20.0 s`
+- render interval: `4`
+
+Terrain and sensors in the rough task:
+
+- terrain type: generated rough terrain
+- terrain curriculum in base env: enabled when terrain curriculum term exists
+- terrain importer max init terrain level: `5`
+- height scanner: enabled
+- contact force sensor: enabled with `history_length=3` and `track_air_time=True`
+
+Terrain and sensors in the flat task:
+
+- terrain replaced with a plane
+- terrain generator disabled
+- height scanner disabled
+- terrain curriculum disabled
+
+### 2. Robot asset and actuator settings
+
+Current robot asset is `UNITREE_GO2_CFG`.
+
+Robot initialization:
+
+- base initial position: `(0.0, 0.0, 0.38)`
+- default joint posture:
+  - hip: `0.0`
+  - thigh: `0.8`
+  - calf: `-1.5`
+- default joint velocity: all zeros
+
+Robot spawn and articulation settings:
+
+- asset source: local Go2 URDF
+- fixed base: disabled
+- merge fixed joints: enabled
+- self collisions: disabled
+- solver position iterations: `4`
+- solver velocity iterations: `0`
+- gravity: enabled
+- linear damping: `0.0`
+- angular damping: `0.0`
+- max depenetration velocity: `1.0`
+
+Actuator settings:
+
+- actuator type: `DCMotorCfg`
+- effort limit: `23.5`
+- saturation effort: `23.5`
+- velocity limit: `30.0`
+- stiffness: `25.0`
+- damping: `0.5`
+- friction: `0.0`
+
+### 3. Command configuration
+
+Base velocity command generator:
+
+- command type: `UniformThresholdVelocityCommand`
+- resampling time: `10.0 s`
+- relative standing envs: `0.02`
+- relative heading envs: `1.0`
+- heading command: enabled
+- heading control stiffness: `0.5`
+
+Command ranges:
+
+- `lin_vel_x`: `[-1.0, 1.0]`
+- `lin_vel_y`: `[-1.0, 1.0]`
+- `ang_vel_z`: `[-1.0, 1.0]`
+- heading: `[-pi, pi]`
+
+Command post-processing:
+
+- small planar commands are zeroed if xy command norm is `<= 0.2`
+- pit-aware restriction logic exists in the command generator
+
+### 4. Observation configuration
+
+Policy observations in the base env:
+
+- base linear velocity
+- base angular velocity
+- projected gravity
+- generated velocity commands
+- joint position relative to default
+- joint velocity
+- previous action
+- height scan
+
+Base observation corruption:
+
+- policy corruption: enabled in the generic base env
+- critic corruption: disabled
+- policy and critic both concatenate terms
+
+Go2 rough overrides for policy observations:
+
+- `base_lin_vel` removed from policy observations
+- `height_scan` removed from policy observations
+- policy scales:
+  - `base_ang_vel = 0.25`
+  - `joint_pos = 1.0`
+  - `joint_vel = 0.05`
+- policy joint order restricted to the 12 Go2 leg joints
+
+Go2 rough critic observations:
+
+- critic still keeps richer state than the policy
+- critic keeps base linear velocity and height scan from the base environment definition
+
+Flat-task observation difference:
+
+- flat task also removes height-scan related observations because the terrain is a plane
+
+### 5. Action configuration
+
+Base action type:
+
+- joint position action with default offsets enabled
+
+Go2 rough action overrides:
+
+- hip joints action scale: `0.125`
+- all non-hip joints action scale: `0.25`
+- action clip: `(-100.0, 100.0)`
+- controlled joints: the 12 Go2 leg joints only
+
+### 6. Randomization and events
+
+Startup randomization:
+
+- rigid body material randomization:
+  - static friction: `(0.3, 1.0)`
+  - dynamic friction: `(0.3, 0.8)`
+  - restitution: `(0.0, 0.5)`
+  - buckets: `64`
+- rigid body mass randomization for base:
+  - operation: `add`
+  - range: `(-1.0, 3.0)`
+- rigid body mass randomization for other bodies:
+  - operation: `scale`
+  - range: `(0.7, 1.3)`
+- COM randomization:
+  - `x/y/z`: `(-0.05, 0.05)`
+
+Reset randomization in the base env:
+
+- external force and torque applied at reset:
+  - force: `(-10.0, 10.0)`
+  - torque: `(-10.0, 10.0)`
+- joint reset by scale:
+  - position range: `(1.0, 1.0)`
+  - velocity range: `(0.0, 0.0)`
+- actuator gain randomization:
+  - stiffness scale: `(0.5, 2.0)`
+  - damping scale: `(0.5, 2.0)`
+- root state randomization:
+  - `x/y`: `(-0.5, 0.5)`
+  - yaw: `(-3.14, 3.14)`
+  - linear and angular velocity: `(-0.5, 0.5)`
+
+Go2 rough reset override:
+
+- root pose randomization becomes much more aggressive:
+  - `z`: `(0.0, 0.2)`
+  - `roll`: `(-3.14, 3.14)`
+  - `pitch`: `(-3.14, 3.14)`
+  - `yaw`: `(-3.14, 3.14)`
+- reset external force/torque is applied specifically to the base body
+- mass randomization target bodies are split into base vs non-base bodies
+
+Interval randomization:
+
+- push-robot event every `10.0` to `15.0 s`
+- planar push velocity range: `(-0.5, 0.5)`
+
+### 7. Reward configuration
+
+Current Go2 rough reward weights:
+
+- `is_terminated = 0`
+- `lin_vel_z_l2 = -2.0`
+- `ang_vel_xy_l2 = -0.05`
+- `flat_orientation_l2 = 0`
+- `base_height_l2 = 0`
+- `body_lin_acc_l2 = 0`
+- `joint_torques_l2 = -2.5e-5`
+- `joint_vel_l2 = 0`
+- `joint_acc_l2 = -2.5e-7`
+- `joint_pos_limits = -5.0`
+- `joint_vel_limits = 0`
+- `joint_power = -2e-5`
+- `stand_still = -2.0`
+- `joint_pos_penalty = -1.0`
+- `joint_mirror = -0.05`
+- `action_rate_l2 = -0.01`
+- `undesired_contacts = -1.0`
+- `contact_forces = -1.5e-4`
+- `track_lin_vel_xy_exp = 3.0`
+- `track_ang_vel_z_exp = 1.5`
+- `feet_air_time = 0.1`
+- `feet_air_time_variance = -1.0`
+- `feet_contact = 0`
+- `feet_contact_without_cmd = 0.1`
+- `feet_stumble = 0`
+- `feet_slide = -0.1`
+- `feet_height = 0`
+- `feet_height_body = -5.0`
+- `feet_gait = 0.5`
+- `upward = 1.0`
+
+Reward details worth remembering:
+
+- velocity tracking rewards are multiplied by an uprightness factor
+- `stand_still` and `joint_pos_penalty` depend on command magnitude
+- `joint_mirror` uses diagonal leg symmetry pairs
+- `feet_gait` encourages trot-like synchronization:
+  - `FL` with `RR`
+  - `FR` with `RL`
+
+Flat-task reward difference:
+
+- flat task does not introduce a new reward table
+- it mainly removes terrain-related components and then disables zero-weight rewards
+
+### 8. Termination and curriculum configuration
+
+Base terminations:
+
+- `time_out`
+- `terrain_out_of_bounds`
+- `illegal_contact`
+
+Current Go2 rough termination override:
+
+- `illegal_contact` is disabled
+
+This is important because it means a fallen robot may remain in the episode instead of being reset immediately.
+
+Current curriculum state in Go2 rough:
+
+- terrain curriculum: inherited from base rough env
+- command curriculum for linear velocity: disabled
+- command curriculum for angular velocity: disabled
+
+Current curriculum state in Go2 flat:
+
+- terrain curriculum: disabled
+- command curricula: still disabled
+
+### 9. Current trainer configuration
+
+RSL-RL Go2 rough trainer:
+
+- `num_steps_per_env = 24`
+- `max_iterations = 20000`
+- `save_interval = 100`
+- `experiment_name = unitree_go2_rough`
+
+Policy network:
+
+- actor hidden dims: `[512, 256, 128]`
+- critic hidden dims: `[512, 256, 128]`
+- activation: `elu`
+- initial action noise std: `1.0`
+- actor observation normalization: disabled
+- critic observation normalization: disabled
+
+PPO algorithm:
+
+- `value_loss_coef = 1.0`
+- `use_clipped_value_loss = True`
+- `clip_param = 0.2`
+- `entropy_coef = 0.01`
+- `num_learning_epochs = 5`
+- `num_mini_batches = 4`
+- `learning_rate = 1e-3`
+- `schedule = adaptive`
+- `gamma = 0.99`
+- `lam = 0.95`
+- `desired_kl = 0.01`
+- `max_grad_norm = 1.0`
+
+Flat-task trainer difference:
+
+- same PPO/trainer structure as rough
+- `max_iterations = 5000`
+- `experiment_name = unitree_go2_flat`
+
+### 10. Baseline snapshot policy
+
+For future comparisons, treat this section as the baseline before any custom environment modifications.
+
+When we change any of the following, we should update this branch note explicitly:
+
+- command ranges
+- observation terms
+- action scales
+- startup/reset randomization
+- reward weights
+- termination logic
+- curriculum logic
+- trainer hyperparameters
+
 ## What We Ran
 
 ### 1. Go2 flat baseline
