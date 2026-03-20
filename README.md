@@ -30,6 +30,8 @@ Current playback artifact:
 
 - clickable gif preview: [![Go2 playback preview](docs/branch_artifacts/go2_flat_full_reproduction_2026-03-19.gif)](docs/branch_artifacts/go2_flat_full_reproduction_2026-03-19.mp4)
 - video: `docs/branch_artifacts/go2_flat_full_reproduction_2026-03-19.mp4`
+- rough-terrain gif preview: [![Go2 rough playback preview](docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.gif)](docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.mp4)
+- rough-terrain video: `docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.mp4`
 
 Observed behavior in the current playback:
 
