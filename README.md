@@ -32,6 +32,8 @@ Current playback artifact:
 - video: `docs/branch_artifacts/go2_flat_full_reproduction_2026-03-19.mp4`
 - rough-terrain gif preview: [![Go2 rough playback preview](docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.gif)](docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.mp4)
 - rough-terrain video: `docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.mp4`
+- rough-terrain gif preview after re-enabling `illegal_contact`: [![Go2 rough playback with illegal contact termination](docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.gif)](docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.mp4)
+- rough-terrain video after re-enabling `illegal_contact`: `docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.mp4`
 
 Observed behavior in the current playback:
 
@@ -41,9 +43,10 @@ Observed behavior in the current playback:
 
 Current root-cause hypothesis from environment inspection:
 
-- the Go2 environment disables `illegal_contact` termination during play and training
-- because of that, a robot that falls can remain in the same episode instead of being reset immediately
-- this is currently the clearest explanation for the "fall early and then stay inactive" behavior seen in playback
+- the earlier Go2 rough configuration disabled `illegal_contact` termination during play and training
+- because of that, a robot that falls could remain in the same episode instead of being reset immediately
+- this was the clearest explanation for the "fall early and then stay inactive" behavior seen in the first rough-terrain playback
+- the current branch now includes a comparison run with `illegal_contact` re-enabled so future iterations can measure the effect of that single change
 
 ## Local Setup Used
 
@@ -322,9 +325,10 @@ Base terminations:
 
 Current Go2 rough termination override:
 
-- `illegal_contact` is disabled
+- `illegal_contact` is enabled
+- invalid contact bodies: `base` and `.*_hip`
 
-This is important because it means a fallen robot may remain in the episode instead of being reset immediately.
+This is important because the current comparison run restores reset-on-fall behavior for base and hip contacts.
 
 Current curriculum state in Go2 rough:
 
@@ -476,6 +480,56 @@ Interpretation:
 - successful training metrics do not yet guarantee robust playback quality
 - in the recorded playback, some robots still fall at the beginning and then remain inactive
 
+### 3. Go2 rough full run
+
+Command:
+
+```bash
+python scripts/reinforcement_learning/rsl_rl/train.py \
+  --task=RobotLab-Isaac-Velocity-Rough-Unitree-Go2-v0 \
+  --headless \
+  --num_envs=1024 \
+  --run_name=go2_rough_full
+```
+
+Artifacts:
+
+- playback video: `docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.mp4`
+
+Interpretation:
+
+- this preserved the original rough-terrain behavior before changing termination logic
+- it is the reference playback for comparing later environment edits
+
+### 4. Go2 rough run with `illegal_contact` re-enabled
+
+Code change:
+
+```python
+self.terminations.illegal_contact.params["sensor_cfg"].body_names = [self.base_link_name, ".*_hip"]
+```
+
+Training command:
+
+```bash
+python scripts/reinforcement_learning/rsl_rl/train.py \
+  --task=RobotLab-Isaac-Velocity-Rough-Unitree-Go2-v0 \
+  --headless \
+  --num_envs=1024 \
+  --run_name=go2_rough_illegal_contact_on
+```
+
+Playback artifacts:
+
+- latest checkpoint used for playback: `model_9900.pt`
+- playback video: `docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.mp4`
+- clickable gif preview: [![Go2 rough playback with illegal contact termination](docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.gif)](docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.mp4)
+
+Interpretation:
+
+- this is the first comparison run after restoring `illegal_contact` termination for the base and hip bodies
+- it should be compared directly against the earlier rough playback when analyzing whether reset-on-fall improves rollout quality
+
 ## How To Reproduce
 
 From a new terminal:
@@ -532,7 +586,7 @@ If you want to evaluate a saved checkpoint later, the next step is to add a matc
 - inspect contact penalties and joint penalties if motion quality looks too stiff or too conservative
 - inspect why some robots fall immediately at reset/play time and do not recover afterward
 - verify whether resets, initial state sampling, or action smoothing are contributing to the frozen-after-fall behavior
-- re-enable or redesign `illegal_contact` termination for Go2 evaluation so fallen robots do not remain stuck in the same episode
+- evaluate whether the re-enabled `illegal_contact` termination materially improves rough-terrain playback quality
 
 ### Repo-side improvements
 
