@@ -11,6 +11,8 @@ This README is branch-specific.
 This branch is for:
 
 - Go2 flat-terrain training experiments
+- Go2 rough-terrain training experiments
+- Go2 stairs-only training experiments
 - local reproduction notes
 - training result snapshots
 - follow-up improvement ideas
@@ -34,6 +36,8 @@ Current playback artifact:
 - rough-terrain video: `docs/branch_artifacts/go2_rough_full_reproduction_2026-03-20.mp4`
 - rough-terrain gif preview after re-enabling `illegal_contact`: [![Go2 rough playback with illegal contact termination](docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.gif)](docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.mp4)
 - rough-terrain video after re-enabling `illegal_contact`: `docs/branch_artifacts/go2_rough_illegal_contact_on_reproduction_2026-03-24.mp4`
+- stairs-only gif preview: [![Go2 stairs-only playback preview](docs/branch_artifacts/go2_stairs_full_reproduction_2026-03-25.gif)](docs/branch_artifacts/go2_stairs_full_reproduction_2026-03-25.mp4)
+- stairs-only video: `docs/branch_artifacts/go2_stairs_full_reproduction_2026-03-25.mp4`
 
 Observed behavior in the current playback:
 
@@ -77,7 +81,7 @@ Primary reference target:
 
 - rough-terrain Go2 training environment
 - task id: `RobotLab-Isaac-Velocity-Rough-Unitree-Go2-v0`
-- flat task is treated as a derived variant of the same setup
+- flat and stairs-only tasks are treated as derived variants of the same setup
 
 ### 1. Scene and simulation
 
@@ -106,6 +110,15 @@ Terrain and sensors in the flat task:
 - terrain generator disabled
 - height scanner disabled
 - terrain curriculum disabled
+
+Terrain and sensors in the stairs-only task:
+
+- terrain type: generated terrain
+- only `pyramid_stairs` and `pyramid_stairs_inv` are kept
+- both stair sub-terrains use `proportion = 0.5`
+- all other rough sub-terrains are set to `0.0`
+- height scanner remains enabled
+- terrain curriculum remains enabled
 
 ### 2. Robot asset and actuator settings
 
@@ -203,6 +216,11 @@ Go2 rough critic observations:
 Flat-task observation difference:
 
 - flat task also removes height-scan related observations because the terrain is a plane
+
+Stairs-task observation difference:
+
+- no observation change relative to the current rough task
+- the experiment isolates terrain composition instead of changing observation design
 
 ### 5. Action configuration
 
@@ -340,6 +358,11 @@ Current curriculum state in Go2 flat:
 
 - terrain curriculum: disabled
 - command curricula: still disabled
+
+Current curriculum state in Go2 stairs-only:
+
+- terrain curriculum: inherited from base rough env
+- command curricula: disabled
 
 ### 9. Current trainer configuration
 
@@ -529,6 +552,49 @@ Interpretation:
 
 - this is the first comparison run after restoring `illegal_contact` termination for the base and hip bodies
 - it should be compared directly against the earlier rough playback when analyzing whether reset-on-fall improves rollout quality
+
+### 5. Go2 stairs-only full run
+
+Task registration:
+
+- task id: `RobotLab-Isaac-Velocity-Stairs-Unitree-Go2-v0`
+- env config: `UnitreeGo2StairsEnvCfg`
+
+Environment delta relative to the current rough task:
+
+- keep only `pyramid_stairs`
+- keep only `pyramid_stairs_inv`
+- keep all non-terrain settings aligned with the current rough Go2 configuration
+
+Training command:
+
+```bash
+python scripts/reinforcement_learning/rsl_rl/train.py \
+  --task=RobotLab-Isaac-Velocity-Stairs-Unitree-Go2-v0 \
+  --headless \
+  --num_envs=1024 \
+  --run_name=go2_stairs_full
+```
+
+Playback artifacts:
+
+- final checkpoint used for playback: `model_19999.pt`
+- playback video: `docs/branch_artifacts/go2_stairs_full_reproduction_2026-03-25.mp4`
+- clickable gif preview: [![Go2 stairs-only playback preview](docs/branch_artifacts/go2_stairs_full_reproduction_2026-03-25.gif)](docs/branch_artifacts/go2_stairs_full_reproduction_2026-03-25.mp4)
+
+Final recorded metrics:
+
+- `Train/mean_reward = 68.9426`
+- `Train/mean_episode_length = 955.2200`
+- `Episode_Reward/track_lin_vel_xy_exp = 1.6968`
+- `Episode_Reward/track_ang_vel_z_exp = 0.7413`
+- `Episode_Termination/time_out = 0.8687`
+
+Interpretation:
+
+- this run isolates stair-climbing and stair-descending behavior from the mixed rough-terrain benchmark
+- it is the cleanest comparison point for asking whether Go2 improves when the terrain distribution contains only stairs
+- the lower timeout ratio relative to flat suggests stairs create more early terminations than the flat baseline, which is expected
 
 ## How To Reproduce
 
