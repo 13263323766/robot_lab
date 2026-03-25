@@ -635,37 +635,51 @@ If you want to evaluate a saved checkpoint later, the next step is to add a matc
 - the 5000-iteration run is not just launching; it actually learns a usable policy trend
 - experiment outputs are structured and reproducible on the current branch
 
-## What Still Needs Improvement
+## Future Plan
 
-### Training-side improvements
+The training feasibility question is now mostly answered on this branch.
 
-- compare `num_envs=1024` with `2048` or `4096` to see whether throughput and stability improve
-- inspect whether `track_ang_vel_z_exp` can be improved with reward or command tuning
-- run multiple seeds instead of trusting a single run
-- add `play.py` evaluation and a short video capture step after each major checkpoint
-- compare playback quality using `num_envs=1` versus multi-env playback to separate policy issues from batch-play artifacts
+The next priority is not generic hyperparameter tuning. The next priority is sim2sim transfer.
 
-### Environment-side improvements
+### Immediate goal
 
-- migrate from flat terrain to rough terrain after the flat baseline is stable
-- compare command tracking and fall behavior between flat and rough Go2 tasks
-- inspect contact penalties and joint penalties if motion quality looks too stiff or too conservative
-- inspect why some robots fall immediately at reset/play time and do not recover afterward
-- verify whether resets, initial state sampling, or action smoothing are contributing to the frozen-after-fall behavior
-- evaluate whether the re-enabled `illegal_contact` termination materially improves rough-terrain playback quality
+- define a transfer-oriented Go2 policy baseline
+- document the deployment-facing actor observations and action interface
+- align control semantics before moving to a second simulator
+- train at least one policy intended for transfer instead of only for in-simulator performance
 
-### Repo-side improvements
+### What we need before transfer
 
-- separate branch-specific experiment notes from upstream project docs more systematically
-- add a lightweight experiment index so each branch can point to the exact log/checkpoint paths it produced
-- clean up dependency mismatches we found during local setup when they block other workflows
+- freeze the actor observation interface and record exact term order
+- freeze the action interface as joint position targets on the 12 leg joints
+- record the control rate, default pose, joint order, and actuator parameters
+- review reset logic so transfer training is robust without relying on extreme spawn states
+- keep domain randomization that helps transfer:
+  - actuator gains
+  - mass
+  - COM
+  - friction
+- avoid adding simulator-specific shortcuts that make the policy harder to port
+
+### What the transfer branch should do
+
+- create a dedicated transfer environment instead of continuing to stack changes onto this branch
+- keep the policy observation space stable
+- keep `illegal_contact` enabled so fall-and-reset behavior is explicit
+- reduce overly aggressive root reset randomization if it hurts transfer-oriented training
+- produce one checkpoint and one playback artifact specifically labeled as sim2sim-prep
+
+### Next branch
+
+- next active branch: `exp/go2-sim2sim`
+- purpose: prepare and train a Go2 policy for simulator-to-simulator transfer
 
 ## Migration Notes
 
 Likely next branch directions:
 
-- `exp/go2-rough-train`: move from flat to rough terrain
-- `exp/go2-eval`: add playback, checkpoint comparison, and video-based evaluation
+- `exp/go2-sim2sim`: transfer-oriented Go2 training and interface cleanup
+- `exp/go2-eval`: playback, checkpoint comparison, and transfer evaluation
 - `fix/dependency-cleanup`: fix local setup issues that are independent of training results
 
 Recommended branch policy:
@@ -686,3 +700,5 @@ At the time of writing, this branch has:
 - saved checkpoints and TensorBoard logs for both runs
 
 This branch should be treated as our working notebook for Go2 training, not as a generic upstream project mirror.
+
+The next implementation work should continue on `exp/go2-sim2sim`, not on `exp/go2-train`.
