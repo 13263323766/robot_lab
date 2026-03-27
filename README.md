@@ -1,143 +1,118 @@
-# robot_lab: Branch Notes for `exp/go2-sim2sim`
+# robot_lab: `exp/go2-sim2sim`
 
 This README is branch-specific.
 
-- Branch: `exp/go2-sim2sim`
-- Goal: prepare a Unitree Go2 policy and environment setup for simulator-to-simulator transfer
-- Policy: keep upstream/original project docs on `main`; keep training reproduction notes on `exp/go2-train`; keep only sim2sim work on this branch
+This branch is no longer just a planning branch. It now contains a working first-pass sim2sim path for Go2.
 
-## Scope
+## Branch Purpose
 
-This branch is for:
+The goal of `exp/go2-sim2sim` is:
 
-- sim2sim-oriented environment cleanup
-- transfer interface definition
-- transfer-oriented training configuration
-- transfer checklists, risks, and conclusions
-- artifacts that directly support migration work
+- keep training reproduction work on `exp/go2-train`
+- build a dedicated simulator-to-simulator validation path here
+- make the trained Go2 policy runnable inside MuJoCo
+- document the current transfer state, not just ideas
 
-This branch is not the place for general project introduction or full training history.
+## What We Built
 
-## Reference Branch
+We built our own `sim2sim/` framework inside this repository.
 
-The training feasibility work stays on:
+This framework is:
+
+- focused on policy playback and validation, not MuJoCo-side training
+- separated from the Isaac training code
+- organized around reusable robot adapters and simulator backends
+- narrowed to a practical current target:
+  - `Go2`
+  - `MuJoCo`
+  - exported Isaac policy playback
+
+The design direction is intentionally inspired by `mjlab`:
+
+- `asset_zoo/robots/`
+- `actuators/`
+- `backends/`
+- `tools/`
+
+But the implementation here is our own branch-local framework, built for our current Go2 sim2sim work.
+
+## Current Reference
+
+Training-side baseline and reproduction history remain on:
 
 - `exp/go2-train`
 
-That branch already records:
+This branch starts after training feasibility was already verified there.
 
-- flat / rough / stairs-only Go2 training runs
+## Current Progress
+
+We are currently at this stage:
+
+1. A dedicated MuJoCo sim2sim framework has been built inside [sim2sim](/data2/sdam/robot_lab/sim2sim).
+2. The active target model has been switched to the official `unitree_mujoco` Go2 asset.
+3. The Go2 playback adapter has been aligned to the Isaac training interface on:
+   - joint order
+   - action semantics
+   - default joint pose
+   - control period
+   - DCMotor-style torque clipping
+4. A transfer-oriented Go2 rough training variant with `armature` has been added on the Isaac side.
+5. The exported Go2 rough+armature policy can now be played and recorded in MuJoCo through the current `sim2sim` path.
+
+So the branch is no longer at the “design checklist” stage. It has already reached:
+
+- `Isaac training -> exported policy -> MuJoCo playback -> recorded artifact`
+
+## Current Status Summary
+
+Current validated path:
+
+- source policy:
+  - `logs/rsl_rl/unitree_go2_rough_armature/2026-03-26_10-44-03_go2_rough_armature_full/exported/policy.onnx`
+- target scene:
+  - `/data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml`
+- current sim2sim README:
+  - [sim2sim/README.md](/data2/sdam/robot_lab/sim2sim/README.md)
+- current playback preview:
+  - [![go2_unitree_mujoco_rough_armature_track](sim2sim/videos/go2_unitree_mujoco_rough_armature_track.gif)](sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4)
+
+## What This Branch Contains
+
+This branch should accumulate:
+
+- sim2sim code
+- transfer-oriented environment/config work
+- MuJoCo target-side validation
 - playback artifacts
-- environment comparison notes
-- baseline behavior before sim2sim preparation
-
-This branch starts after basic training feasibility has already been established.
-
-## Current Objective
-
-The current priority is to make the Go2 policy transferable, not to keep doing generic hyperparameter tuning.
-
-The immediate question is:
-
-- what must be fixed, frozen, or simplified before moving the policy into a second simulator
-
-## Transfer Baseline
-
-Current control and policy assumptions inherited from the training branch:
-
-- robot: Unitree Go2
-- policy type: locomotion velocity tracking
-- action interface: joint position targets
-- controlled joints: 12 leg joints
-- low-level actuator model: `DCMotorCfg`
-- control step: `0.02 s`
-- policy observations are asymmetric with critic observations
-- deployment should follow actor observations, not critic observations
-
-Current transfer-relevant actor-side assumptions:
-
-- actor does not use `base_lin_vel`
-- actor does not use `height_scan`
-- actor uses body angular velocity, projected gravity, commands, joint position, joint velocity, and previous action
-
-This is useful for transfer because the deployed policy interface is already narrower than the full privileged critic state.
-
-## What Must Be Frozen Before Transfer
-
-Before running a dedicated sim2sim training cycle, we should freeze and document:
-
-- actor observation term list and exact order
-- action dimension and joint order
-- default joint pose
-- control frequency
-- actuator parameters:
-  - stiffness
-  - damping
-  - effort limit
-  - velocity limit
-- termination behavior
-- reset behavior
-- command ranges
-
-If any of these keep drifting during experiments, it becomes much harder to tell whether transfer failure comes from training or interface mismatch.
-
-## What Must Be Checked In The Target Simulator
-
-Before migration, the target simulator must be checked against the current policy assumptions:
-
-- can it accept joint position targets directly
-- if not, can we reproduce the same position-control semantics with an equivalent PD layer
-- does it use the same joint order
-- can it reproduce the same default pose
-- can it match the same control rate
-- can it provide the same actor observations
-
-The most important point is that this policy is not a direct torque policy. It depends on a position-target control interface backed by motor parameters.
-
-## Training Strategy For Sim2sim
-
-The next training cycle on this branch should be transfer-oriented.
-
-That means:
-
-- keep domain randomization that improves transfer:
-  - friction randomization
-  - mass randomization
-  - COM randomization
-  - actuator gain randomization
-- keep explicit fall termination behavior
-- reduce reset settings that are unrealistically extreme if they harm transfer learning
-- avoid simulator-specific shortcuts in the observation or control interface
-- produce checkpoints and playback artifacts labeled specifically for sim2sim preparation
-
-The goal is not just a high reward inside Isaac Sim. The goal is a policy that survives interface shift.
-
-## First Concrete Tasks On This Branch
-
-The first work items here should be:
-
-1. Record the actor-side transfer interface in a stable, deployment-facing format.
-2. Create a sim2sim-prep environment config derived from the current Go2 baseline.
-3. Review reset logic and reduce overly aggressive root randomization if needed.
-4. Keep `illegal_contact` enabled so reset-on-fall behavior is explicit.
-5. Train one dedicated sim2sim-prep checkpoint.
-6. Define the target simulator adapter requirements.
-
-## Branch Output Policy
-
-This branch should only accumulate:
-
-- sim2sim configs
-- transfer notes
-- transfer experiments
 - migration conclusions
 
-It should not become another full replay of the general training branch.
+This branch should not become a duplicate of the full training reproduction branch.
 
-## Status
+## Immediate Meaning Of The Current Result
 
-At the time of writing:
+The current result means:
 
-- basic training feasibility has already been verified on `exp/go2-train`
-- this branch is the dedicated starting point for sim2sim work
-- the next implementation step is to build the first transfer-oriented Go2 environment/config on this branch
+- we now have a working MuJoCo-side policy validation path
+- we are using the official `unitree_mujoco` Go2 model instead of the earlier self-converted prototype model
+- we have already identified and corrected several critical transfer mismatches:
+  - wrong joint/action order
+  - mismatched DCMotor clipping values
+  - unsuitable initial base height
+
+The next phase is no longer “can we build a framework”.
+
+The next phase is:
+
+- continue improving controller/model alignment
+- compare behavior quality between Isaac playback and MuJoCo playback
+- decide what further transfer-oriented training changes are still necessary
+
+## Where To Look Next
+
+For the concrete current sim2sim workflow, use:
+
+- [sim2sim/README.md](/data2/sdam/robot_lab/sim2sim/README.md)
+
+For earlier training runs and baseline behavior, use:
+
+- `exp/go2-train`
