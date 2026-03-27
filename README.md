@@ -48,7 +48,7 @@ This branch starts after training feasibility was already verified there.
 
 We are currently at this stage:
 
-1. A dedicated MuJoCo sim2sim framework has been built inside [sim2sim](/data2/sdam/robot_lab/sim2sim).
+1. A dedicated MuJoCo sim2sim framework has been built inside [sim2sim](sim2sim).
 2. The active target model has been switched to the official `unitree_mujoco` Go2 asset.
 3. The Go2 playback adapter has been aligned to the Isaac training interface on:
    - joint order
@@ -72,7 +72,7 @@ Current validated path:
 - target scene:
   - `/data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml`
 - current sim2sim README:
-  - [sim2sim/README.md](/data2/sdam/robot_lab/sim2sim/README.md)
+  - [sim2sim/README.md](sim2sim/README.md)
 - current playback preview:
   - [![go2_unitree_mujoco_rough_armature_track](sim2sim/videos/go2_unitree_mujoco_rough_armature_track.gif)](sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4)
 
@@ -111,7 +111,7 @@ The next phase is:
 
 For the concrete current sim2sim workflow, use:
 
-- [sim2sim/README.md](/data2/sdam/robot_lab/sim2sim/README.md)
+- [sim2sim/README.md](sim2sim/README.md)
 
 For earlier training runs and baseline behavior, use:
 
