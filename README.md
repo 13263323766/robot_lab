@@ -57,7 +57,8 @@ We are currently at this stage:
    - control period
    - DCMotor-style torque clipping
 4. A transfer-oriented Go2 rough training variant with `armature` has been added on the Isaac side.
-5. The exported Go2 rough+armature policy can now be played and recorded in MuJoCo through the current `sim2sim` path.
+5. A second target-aligned Go2 rough task has been added to better match `unitree_mujoco` joint dynamics.
+6. The exported Go2 rough+armature policy can now be played and recorded in MuJoCo through the current `sim2sim` path.
 
 So the branch is no longer at the “design checklist” stage. It has already reached:
 
@@ -106,6 +107,22 @@ The next phase is:
 - continue improving controller/model alignment
 - compare behavior quality between Isaac playback and MuJoCo playback
 - decide what further transfer-oriented training changes are still necessary
+
+## Current Training Variants
+
+The branch now contains two transfer-oriented Go2 rough variants on the Isaac side:
+
+- `RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Armature-v0`
+  - adds reflected actuator armature for sim2sim-oriented training
+- `RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-v0`
+  - keeps the same rough curriculum/task structure
+  - aligns robot-side joint dynamics more closely to `unitree_mujoco`
+  - currently matches the target side on:
+    - `armature = 0.01`
+    - `damping = 0.1`
+    - actuator friction term used as an approximation of `frictionloss = 0.2`
+
+This means the current branch is no longer only about playback. It now also contains a dedicated training path that explicitly moves the Isaac-side Go2 dynamics toward the MuJoCo target model.
 
 ## Where To Look Next
 

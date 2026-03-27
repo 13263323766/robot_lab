@@ -29,6 +29,20 @@ Current validated example:
 - recorded playback:
   - [go2_unitree_mujoco_rough_armature_track.mp4](videos/go2_unitree_mujoco_rough_armature_track.mp4)
 
+## Current Training Alignment Work
+
+On the Isaac side, the branch now also includes a target-aligned Go2 rough task:
+
+- `RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-v0`
+
+Compared with the earlier `rough+armature` variant, this task keeps the same rough terrain setup and curriculum logic, but moves the robot-side joint dynamics closer to the current `unitree_mujoco` target model by using:
+
+- `armature = 0.01`
+- `damping = 0.1`
+- actuator friction term as an approximation of target-side `frictionloss = 0.2`
+
+The intent is to reduce dynamics mismatch before exporting and validating the policy through this `sim2sim/` pipeline.
+
 ## Model Zoo
 
 Current comparison set recorded in MuJoCo:
