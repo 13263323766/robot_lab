@@ -29,6 +29,21 @@ Current validated example:
 - recorded playback:
   - [go2_unitree_mujoco_rough_armature_track.mp4](videos/go2_unitree_mujoco_rough_armature_track.mp4)
 
+## Model Zoo
+
+Current comparison set recorded in MuJoCo:
+
+- flat full
+  - [![go2_flat_full](videos/model_zoo/gifs/go2_flat_full.gif)](videos/model_zoo/go2_flat_full.mp4)
+- rough full
+  - [![go2_rough_full](videos/model_zoo/gifs/go2_rough_full.gif)](videos/model_zoo/go2_rough_full.mp4)
+- rough with `illegal_contact`
+  - [![go2_rough_illegal_contact_on](videos/model_zoo/gifs/go2_rough_illegal_contact_on.gif)](videos/model_zoo/go2_rough_illegal_contact_on.mp4)
+- stairs full
+  - [![go2_stairs_full](videos/model_zoo/gifs/go2_stairs_full.gif)](videos/model_zoo/go2_stairs_full.mp4)
+- rough with `armature`
+  - [![go2_rough_armature_full](videos/model_zoo/gifs/go2_rough_armature_full.gif)](videos/model_zoo/go2_rough_armature_full.mp4)
+
 ## What Is Aligned
 
 The current Go2 adapter is aligned to the Isaac training setup on these points:

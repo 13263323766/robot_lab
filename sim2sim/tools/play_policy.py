@@ -40,7 +40,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--video-fps", type=int, default=None, help="Recorded video fps. Defaults to 1/control_dt.")
     parser.add_argument("--track-camera", action="store_true", help="Track the robot root body during recording.")
     parser.add_argument("--camera-distance", type=float, default=2.6, help="Tracking camera distance.")
-    parser.add_argument("--camera-elevation", type=float, default=-12.0, help="Tracking camera elevation in degrees.")
+    parser.add_argument("--camera-elevation", type=float, default=-30, help="Tracking camera elevation in degrees.")
     parser.add_argument("--camera-azimuth", type=float, default=0.0, help="Tracking camera azimuth in degrees.")
     return parser
 
