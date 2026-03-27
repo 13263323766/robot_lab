@@ -24,6 +24,8 @@ Current validated example:
   - `logs/rsl_rl/unitree_go2_rough_armature/2026-03-26_10-44-03_go2_rough_armature_full/exported/policy.onnx`
 - target scene:
   - `/data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml`
+- preview:
+  - [![go2_unitree_mujoco_rough_armature_track](/data2/sdam/robot_lab/sim2sim/videos/go2_unitree_mujoco_rough_armature_track.gif)](/data2/sdam/robot_lab/sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4)
 - recorded playback:
   - [go2_unitree_mujoco_rough_armature_track.mp4](/data2/sdam/robot_lab/sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4)
 
