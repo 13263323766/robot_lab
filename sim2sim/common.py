@@ -80,14 +80,8 @@ class CollisionProfileCfg:
 class MujocoAssetPaths:
     """Resolved model paths for a sim2sim robot asset."""
 
-    source_urdf: str
     mesh_root: str
-    sanitized_urdf: str
-    floating_xml: str
-    feet_only_xml: str | None = None
-    feet_only_position_xml: str | None = None
-    feet_only_position_armature_xml: str | None = None
-    preferred_playback_xml: str | None = None
+    preferred_playback_xml: str
 
 
 @dataclass(frozen=True)

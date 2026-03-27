@@ -1,141 +1,119 @@
 # sim2sim
 
-This directory contains simulator-to-simulator validation utilities.
+This directory contains the current MuJoCo playback path for exported Isaac policies.
 
 Current scope:
 
-- run an exported Isaac Sim policy inside MuJoCo
-- keep policy inference separate from training code
-- support reusable robot adapters instead of a one-off Go2 script
-- follow an mjlab-style layout without transitional compatibility layers
+- target simulator: `unitree_mujoco`
+- current robot: `Go2`
+- current source policy family: Isaac Sim / Isaac Lab velocity policies
+- current goal: play and inspect trained policies in MuJoCo, not train in MuJoCo
 
-Current first target:
+## Current Status
 
-- Isaac Sim Go2 velocity policy
-- MuJoCo as the target simulator
+The sim2sim path is now intentionally narrowed to a single practical route:
 
-## Layout
+- use the official Go2 model from `unitree_mujoco`
+- keep a reusable adapter layer for Isaac policy observations and actions
+- play exported `.onnx` / `.pt` policies inside MuJoCo
+- support video recording for sharing results
 
-- `asset_zoo/robots/`: robot-facing adapter definitions, inspired by `mjlab.asset_zoo`
-  includes both deployment adapters and MuJoCo-native asset constants
-- `registry.py`: top-level robot registry
-- `actuators/`: reusable actuator semantics, inspired by `mjlab.actuator`
-- `backends/`: simulator backends
-- `tools/`: command-style entry points for prepare/build/inspect/play/validate
-- `common.py`: shared robot and command spec dataclasses
-- `adapters.py`: robot-specific observation and action adapters
-- `policies.py`: `.pt` / `.onnx` policy loaders
+Current validated example:
 
-There are no longer duplicate top-level shims for play/inspect/build/prepare.
-The canonical entry points now all live under `tools/`.
+- source policy:
+  - `logs/rsl_rl/unitree_go2_rough_armature/2026-03-26_10-44-03_go2_rough_armature_full/exported/policy.onnx`
+- target scene:
+  - `/data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml`
+- recorded playback:
+  - [go2_unitree_mujoco_rough_armature_track.mp4](/data2/sdam/robot_lab/sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4)
 
-## Asset Config
+## What Is Aligned
 
-The first mjlab-style asset config now lives in:
+The current Go2 adapter is aligned to the Isaac training setup on these points:
 
-- `asset_zoo/robots/unitree_go2_asset.py`
-
-It records:
-
-- model paths for the current Go2 MuJoCo prototypes
-- preferred playback XML
-- default base pose and default joint pose
-- foot collision geom names
-- MuJoCo-native position actuator groups
-- collision profile metadata
-
-The deployment adapter in `asset_zoo/robots/unitree_go2.py` now consumes this
-asset config instead of hardcoding base pose and joint ordering in multiple
-places.
-
-There is also a paired asset registry path now:
-
-- `make_robot_adapter(robot_name)`
-- `get_robot_asset_cfg(robot_name)`
-
-This lets tools follow a single pipeline:
-
-`robot name -> asset cfg -> build/inspect/play`
-
-Current asset build helpers:
-
-- `tools/prepare_urdf.py`
-- `tools/build_mjcf.py`
-- `tools/build_robot_assets.py`
-- `tools/inspect_model.py`
-- `tools/play_policy.py`
-- `tools/validate_robot_policy.py`
-
-So the first-pass Go2 asset pipeline can now be driven from the registered robot
-name instead of repeating source paths by hand.
-
-Current default for Go2 playback is now intended to be the more mjlab-like
-variant:
-
-- feet-only collision
-- position actuator
-- armature-enabled XML
-
-## Go2 Baseline Assumptions
-
-Current Go2 adapter is aligned to the Isaac Sim velocity policy with:
-
-- root body name: `base`
-- 12 controlled joints in this order:
-  - `FL_hip_joint`
-  - `FL_thigh_joint`
-  - `FL_calf_joint`
-  - `FR_hip_joint`
-  - `FR_thigh_joint`
-  - `FR_calf_joint`
-  - `RL_hip_joint`
-  - `RL_thigh_joint`
-  - `RL_calf_joint`
-  - `RR_hip_joint`
-  - `RR_thigh_joint`
-  - `RR_calf_joint`
+- joint order:
+  - `FR, FL, RR, RL`
 - default joint pose:
   - hip `0.0`
   - thigh `0.8`
   - calf `-1.5`
-- action scales:
+- action semantics:
+  - `target_pos = default_joint_pos + action * scale`
+- action scale:
   - hip `0.125`
   - thigh/calf `0.25`
-- actor observation dimension: `45`
-- control dt: `0.02`
-- default PD gains for first playback:
-  - `kp = 25.0`
-  - `kd = 0.5`
-- effort limit:
-  - `23.5`
+- actor observation dimension:
+  - `45`
+- control period:
+  - `0.02`
+- DCMotor-style clipping:
+  - `effort_limit = 23.5`
+  - `velocity_limit = 30.0`
+  - `saturation_effort = 23.5`
+
+The current playback chain is:
+
+`policy -> target joint position -> PD torque -> DC motor clipping -> MuJoCo motor actuator`
+
+## Layout
+
+- `asset_zoo/robots/`
+  - robot asset constants and adapter factory
+- `actuators/`
+  - reusable actuator semantics
+- `backends/`
+  - MuJoCo robot interface
+- `tools/inspect_model.py`
+  - inspect root body, joints, actuators
+- `tools/play_policy.py`
+  - run and optionally record a policy
+- `tools/validate_robot_policy.py`
+  - inspect + play in one command
+- `adapters.py`
+  - actor observation and action translation
+- `policies.py`
+  - `.onnx` / `.pt` loaders
+- `registry.py`
+  - top-level robot registry
 
 ## Usage
 
-Inspect a MuJoCo model before playback:
+Inspect the current Go2 target model:
 
 ```bash
+conda activate env_isaaclab
 PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/inspect_model.py \
-  --xml-path /path/to/go2.xml \
-  --robot unitree_go2_isaac_velocity
+  --robot unitree_go2_unitree_mujoco \
+  --xml-path /data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml
 ```
 
-Run a TorchScript policy in MuJoCo:
+Run the current rough+armature Go2 policy:
 
 ```bash
-PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/play_policy.py \
-  --policy /path/to/policy.pt \
-  --xml-path /path/to/go2.xml \
-  --robot unitree_go2_isaac_velocity \
-  --render
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_armature/2026-03-26_10-44-03_go2_rough_armature_full/exported/policy.onnx \
+  --xml-path /data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml \
+  --render \
+  --real-time
 ```
 
-## Extension Rule
+Record a rear-following playback video:
 
-For a new robot:
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_armature/2026-03-26_10-44-03_go2_rough_armature_full/exported/policy.onnx \
+  --xml-path /data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml \
+  --steps 500 \
+  --record-video /data2/sdam/robot_lab/sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4 \
+  --track-camera
+```
 
-1. Add a robot module under `asset_zoo/robots/`.
-2. Define a `Sim2SimRobotSpec`.
-3. Add an adapter subclass only if observation logic differs.
-4. Register it in `asset_zoo/robots/__init__.py`.
+## Current Notes
 
-The registry, backend, and playback script should stay reusable.
+- The old URDF-to-MJCF prototype path has been removed from the active workflow.
+- The current recommended target is the official `unitree_mujoco` Go2 asset.
+- The current branch focus is policy validation and controller alignment, not MuJoCo-side training.

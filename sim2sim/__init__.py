@@ -4,7 +4,10 @@
 """Utilities for simulator-to-simulator validation."""
 
 from .adapters import Sim2SimAdapter, UnitreeGo2IsaacVelocityAdapter
-from .asset_zoo.robots import GO2_MUJOCO_ASSET_CFG, get_go2_mujoco_asset_cfg
+from .asset_zoo.robots import (
+    UNITREE_MUJOCO_GO2_ASSET_CFG,
+    get_go2_unitree_mujoco_asset_cfg,
+)
 from .common import (
     CollisionProfileCfg,
     MujocoAssetPaths,
@@ -17,7 +20,7 @@ from .registry import get_robot_asset_cfg, make_robot_adapter
 
 __all__ = [
     "CollisionProfileCfg",
-    "GO2_MUJOCO_ASSET_CFG",
+    "UNITREE_MUJOCO_GO2_ASSET_CFG",
     "MujocoAssetPaths",
     "MujocoRobotAssetCfg",
     "PositionActuatorGroupCfg",
@@ -25,7 +28,7 @@ __all__ = [
     "Sim2SimCommand",
     "Sim2SimRobotSpec",
     "UnitreeGo2IsaacVelocityAdapter",
-    "get_go2_mujoco_asset_cfg",
+    "get_go2_unitree_mujoco_asset_cfg",
     "get_robot_asset_cfg",
     "make_robot_adapter",
 ]

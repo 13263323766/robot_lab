@@ -18,7 +18,7 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--robot",
         type=str,
-        default="unitree_go2_isaac_velocity",
+        default="unitree_go2_unitree_mujoco",
         help="Registered sim2sim robot adapter name.",
     )
     parser.add_argument("--sim-dt", type=float, default=0.005, help="MuJoCo simulation timestep.")

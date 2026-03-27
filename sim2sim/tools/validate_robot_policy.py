@@ -9,10 +9,8 @@ import argparse
 import json
 
 from sim2sim import get_robot_asset_cfg
-from sim2sim.tools.build_mjcf import build_mjcf_for_robot
 from sim2sim.tools.inspect_model import inspect_model
 from sim2sim.tools.play_policy import run_policy
-from sim2sim.tools.prepare_urdf import prepare_urdf_for_robot
 
 
 def build_argparser() -> argparse.ArgumentParser:
@@ -21,20 +19,14 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--robot",
         type=str,
-        default="unitree_go2_isaac_velocity",
+        default="unitree_go2_unitree_mujoco",
         help="Registered sim2sim robot name.",
     )
     parser.add_argument(
         "--xml-path",
         type=str,
         default=None,
-        help="Optional ready-made MuJoCo XML. If omitted, the asset default or a rebuilt XML is used.",
-    )
-    parser.add_argument(
-        "--compiled-xml",
-        type=str,
-        default=None,
-        help="Optional compiled XML from a raw URDF import. If set, assets are rebuilt before validation.",
+        help="Optional ready-made MuJoCo XML. If omitted, the asset default is used.",
     )
     parser.add_argument("--sim-dt", type=float, default=0.005, help="MuJoCo simulation timestep.")
     parser.add_argument("--steps", type=int, default=2000, help="Number of control steps to simulate.")
@@ -45,18 +37,14 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--kd", type=float, default=0.5, help="Uniform derivative gain for all joints.")
     parser.add_argument("--render", action="store_true", help="Launch passive MuJoCo viewer.")
     parser.add_argument("--real-time", action="store_true", help="Sleep to approximate real-time playback.")
-    parser.add_argument(
-        "--feet-only-collision",
-        action="store_true",
-        help="Use feet-only collision when rebuilding the MJCF from a compiled import.",
-    )
-    parser.add_argument(
-        "--actuator-type",
-        type=str,
-        choices=("motor", "position"),
-        default="position",
-        help="Actuator type used when rebuilding the MJCF.",
-    )
+    parser.add_argument("--record-video", type=str, default=None, help="Optional mp4 output path for offscreen recording.")
+    parser.add_argument("--video-width", type=int, default=640, help="Recorded video width.")
+    parser.add_argument("--video-height", type=int, default=480, help="Recorded video height.")
+    parser.add_argument("--video-fps", type=int, default=None, help="Recorded video fps. Defaults to 1/control_dt.")
+    parser.add_argument("--track-camera", action="store_true", help="Track the robot root body during recording.")
+    parser.add_argument("--camera-distance", type=float, default=2.6, help="Tracking camera distance.")
+    parser.add_argument("--camera-elevation", type=float, default=-12.0, help="Tracking camera elevation in degrees.")
+    parser.add_argument("--camera-azimuth", type=float, default=0.0, help="Tracking camera azimuth in degrees.")
     return parser
 
 
@@ -64,19 +52,7 @@ def main() -> None:
     args = build_argparser().parse_args()
     asset_cfg = get_robot_asset_cfg(args.robot)
 
-    xml_path = args.xml_path or asset_cfg.paths.preferred_playback_xml or asset_cfg.paths.floating_xml
-    if args.compiled_xml is not None:
-        sanitized_urdf = prepare_urdf_for_robot(args.robot)
-        xml_path = str(
-            build_mjcf_for_robot(
-                robot_name=args.robot,
-                compiled_xml=args.compiled_xml,
-                source_urdf=str(sanitized_urdf),
-                output_xml=args.xml_path,
-                actuator_type=args.actuator_type,
-                feet_only_collision=args.feet_only_collision,
-            )
-        )
+    xml_path = args.xml_path or asset_cfg.paths.preferred_playback_xml
 
     info = inspect_model(xml_path=xml_path, robot=args.robot, sim_dt=args.sim_dt)
     print("[sim2sim] inspection")
@@ -95,6 +71,14 @@ def main() -> None:
         kd=args.kd,
         render=args.render,
         real_time=args.real_time,
+        record_video=args.record_video,
+        video_width=args.video_width,
+        video_height=args.video_height,
+        video_fps=args.video_fps,
+        track_camera=args.track_camera,
+        camera_distance=args.camera_distance,
+        camera_elevation=args.camera_elevation,
+        camera_azimuth=args.camera_azimuth,
     )
 
 
