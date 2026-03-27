@@ -3,7 +3,7 @@
 
 from isaaclab.utils import configclass
 
-from robot_lab.assets.unitree import UNITREE_GO2_ARMATURE_CFG
+from robot_lab.assets.unitree import UNITREE_GO2_ARMATURE_CFG, UNITREE_GO2_TARGET_CFG
 
 from .rough_env_cfg import UnitreeGo2RoughEnvCfg
 
@@ -15,4 +15,15 @@ class UnitreeGo2RoughArmatureEnvCfg(UnitreeGo2RoughEnvCfg):
 
         # Swap in the sim2sim-oriented training asset that adds reflected armature.
         self.scene.robot = UNITREE_GO2_ARMATURE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.disable_zero_weight_rewards()
+
+
+@configclass
+class UnitreeGo2RoughTargetEnvCfg(UnitreeGo2RoughEnvCfg):
+    def __post_init__(self):
+        super().__post_init__()
+
+        # Keep the current rough/stairs terrain curriculum behavior unchanged and only
+        # align the robot-side dynamics toward the Unitree MuJoCo target model.
+        self.scene.robot = UNITREE_GO2_TARGET_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.disable_zero_weight_rewards()

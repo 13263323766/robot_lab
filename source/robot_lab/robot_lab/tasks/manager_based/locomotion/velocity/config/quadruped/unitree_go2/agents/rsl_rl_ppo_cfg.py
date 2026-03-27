@@ -51,3 +51,11 @@ class UnitreeGo2RoughArmaturePPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
         super().__post_init__()
 
         self.experiment_name = "unitree_go2_rough_armature"
+
+
+@configclass
+class UnitreeGo2RoughTargetPPORunnerCfg(UnitreeGo2RoughPPORunnerCfg):
+    def __post_init__(self):
+        super().__post_init__()
+
+        self.experiment_name = "unitree_go2_rough_target"
