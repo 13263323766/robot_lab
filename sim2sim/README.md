@@ -43,6 +43,21 @@ Compared with the earlier `rough+armature` variant, this task keeps the same rou
 
 The intent is to reduce dynamics mismatch before exporting and validating the policy through this `sim2sim/` pipeline.
 
+The branch also now contains a stairs-heavy target-aligned source task:
+
+- `RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-StairsHeavy-v0`
+
+This task keeps the current rough terrain curriculum enabled, but changes the terrain mix to:
+
+- `pyramid_stairs = 0.35`
+- `pyramid_stairs_inv = 0.35`
+- `boxes = 0.10`
+- `random_rough = 0.10`
+- `hf_pyramid_slope = 0.05`
+- `hf_pyramid_slope_inv = 0.05`
+
+The purpose is to raise stair exposure frequency in the source simulator without collapsing the task into a pure stairs-only training setup.
+
 ## Latest Observation
 
 Latest recorded target-aligned playback:
@@ -140,6 +155,10 @@ The current playback chain is:
   - inspect root body, joints, actuators
 - `tools/play_policy.py`
   - run and optionally record a policy
+- `tools/build_terrain_scene.py`
+  - wrap an exported Isaac terrain mesh into a MuJoCo scene XML
+- `tools/evaluate_origins.py`
+  - run the same policy over multiple exported terrain origins one by one
 - `tools/validate_robot_policy.py`
   - inspect + play in one command
 - `adapters.py`
@@ -184,6 +203,70 @@ PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
   --record-video /data2/sdam/robot_lab/sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4 \
   --track-camera
 ```
+
+Export the exact terrain mesh used during Isaac-side play:
+
+```bash
+use_robot_lab
+
+python scripts/reinforcement_learning/rsl_rl/play.py \
+  --task=RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-StairsHeavy-v0 \
+  --checkpoint=/data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/<run>/model_49999.pt \
+  --num_envs=1 \
+  --export-terrain-mesh=/data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj
+```
+
+This produces:
+
+- exported terrain mesh, for example `go2_target_stairs_heavy_play.obj`
+- terrain origins, for example `go2_target_stairs_heavy_play_origins.npy`
+- terrain metadata JSON beside the mesh
+
+Build a MuJoCo scene from that exported terrain:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/build_terrain_scene.py \
+  --terrain-mesh /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj \
+  --output-xml /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml
+```
+
+Evaluate one origin at a time on the same exported training terrain:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target/2026-03-27_17-00-12_go2_rough_target_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
+  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
+  --spawn-origin-index 0 \
+  --render \
+  --real-time
+```
+
+Batch-evaluate multiple origins:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/evaluate_origins.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target/2026-03-27_17-00-12_go2_rough_target_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
+  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
+  --index-start 0 \
+  --index-stop 20 \
+  --steps 500 \
+  --record-dir /data2/sdam/robot_lab/sim2sim/videos/origin_sweep \
+  --track-camera
+```
+
+This is the current preferred way to compare source and target behavior:
+
+- export the exact terrain instance used on the Isaac side
+- reuse that same terrain as a MuJoCo mesh
+- place one robot at one exported origin at a time
+- compare behavior across multiple origins instead of forcing a multi-robot MuJoCo scene first
 
 ## Current Notes
 

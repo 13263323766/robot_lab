@@ -42,6 +42,18 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--camera-distance", type=float, default=2.6, help="Tracking camera distance.")
     parser.add_argument("--camera-elevation", type=float, default=-30, help="Tracking camera elevation in degrees.")
     parser.add_argument("--camera-azimuth", type=float, default=0.0, help="Tracking camera azimuth in degrees.")
+    parser.add_argument(
+        "--origins-path",
+        type=str,
+        default=None,
+        help="Optional .npy terrain origins exported from Isaac play. Used with --spawn-origin-index.",
+    )
+    parser.add_argument(
+        "--spawn-origin-index",
+        type=int,
+        default=None,
+        help="Flattened terrain-origin index to spawn the robot at on an exported Isaac terrain.",
+    )
     return parser
 
 
@@ -68,6 +80,8 @@ def run_policy(
     camera_distance: float = 2.6,
     camera_elevation: float = -12.0,
     camera_azimuth: float = 0.0,
+    origins_path: str | None = None,
+    spawn_origin_index: int | None = None,
 ) -> None:
     import imageio.v2 as imageio
     import mujoco
@@ -87,8 +101,21 @@ def run_policy(
     )
     kp_gains, kd_gains = adapter.spec.make_uniform_gains(kp, kd)
     interface.set_pd_gains(kp_gains, kd_gains)
+
+    initial_base_pos = adapter.spec.initial_base_pos.copy()
+    if origins_path is not None:
+        origins = np.load(Path(origins_path).expanduser().resolve())
+        flat_origins = origins.reshape(-1, 3)
+        if spawn_origin_index is None:
+            raise ValueError("--spawn-origin-index must be provided when --origins-path is used.")
+        if spawn_origin_index < 0 or spawn_origin_index >= len(flat_origins):
+            raise IndexError(
+                f"spawn origin index {spawn_origin_index} out of bounds for {len(flat_origins)} terrain origins"
+            )
+        initial_base_pos = initial_base_pos + flat_origins[spawn_origin_index].astype(np.float32)
+
     interface.reset(
-        initial_base_pos=adapter.spec.initial_base_pos,
+        initial_base_pos=initial_base_pos,
         initial_base_quat_wxyz=adapter.spec.initial_base_quat_wxyz,
         default_joint_pos=adapter.spec.default_joint_pos,
     )
@@ -119,6 +146,9 @@ def run_policy(
     print(f"[sim2sim] command={command.as_array().tolist()}")
     print(f"[sim2sim] actuators={interface.resolved_actuator_names}")
     print(f"[sim2sim] actuator_command_mode={interface.actuator_command_mode}")
+    print(f"[sim2sim] initial_base_pos={initial_base_pos.tolist()}")
+    if origins_path is not None:
+        print(f"[sim2sim] origins_path={origins_path}, spawn_origin_index={spawn_origin_index}")
     if record_video is not None:
         print(f"[sim2sim] recording={str(record_path)}")
 
@@ -174,6 +204,8 @@ def main() -> None:
         camera_distance=args.camera_distance,
         camera_elevation=args.camera_elevation,
         camera_azimuth=args.camera_azimuth,
+        origins_path=args.origins_path,
+        spawn_origin_index=args.spawn_origin_index,
     )
 
 

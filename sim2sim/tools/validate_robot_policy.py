@@ -45,6 +45,18 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--camera-distance", type=float, default=2.6, help="Tracking camera distance.")
     parser.add_argument("--camera-elevation", type=float, default=-12.0, help="Tracking camera elevation in degrees.")
     parser.add_argument("--camera-azimuth", type=float, default=0.0, help="Tracking camera azimuth in degrees.")
+    parser.add_argument(
+        "--origins-path",
+        type=str,
+        default=None,
+        help="Optional .npy terrain origins exported from Isaac play. Used with --spawn-origin-index.",
+    )
+    parser.add_argument(
+        "--spawn-origin-index",
+        type=int,
+        default=None,
+        help="Flattened terrain-origin index to spawn the robot at on an exported Isaac terrain.",
+    )
     return parser
 
 
@@ -79,6 +91,8 @@ def main() -> None:
         camera_distance=args.camera_distance,
         camera_elevation=args.camera_elevation,
         camera_azimuth=args.camera_azimuth,
+        origins_path=args.origins_path,
+        spawn_origin_index=args.spawn_origin_index,
     )
 
 

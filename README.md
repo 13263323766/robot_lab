@@ -136,6 +136,41 @@ The branch now contains two transfer-oriented Go2 rough variants on the Isaac si
 
 This means the current branch is no longer only about playback. It now also contains a dedicated training path that explicitly moves the Isaac-side Go2 dynamics toward the MuJoCo target model.
 
+The branch also contains a stairs-heavy target-aligned variant:
+
+- `RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-StairsHeavy-v0`
+
+This keeps the rough terrain curriculum active, but changes the terrain proportions so that stairs dominate the source training distribution:
+
+- `pyramid_stairs = 0.35`
+- `pyramid_stairs_inv = 0.35`
+- the remaining `0.30` is split across boxes, random rough, and slopes
+
+This task exists because the current question is no longer only “can the policy transfer”, but also “does the source policy itself have enough stair capability before transfer”.
+
+## Current Terrain-Reuse Workflow
+
+The branch now also supports a terrain-reuse workflow for tighter source-to-target comparisons:
+
+1. Export the exact terrain mesh used during Isaac-side `play`
+2. Build a MuJoCo scene from that exported terrain mesh
+3. Reuse the exported `terrain_origins`
+4. Evaluate one robot at one origin at a time on the same terrain
+
+This is intentionally different from trying to make MuJoCo immediately run many robots in parallel.
+
+At the current stage, the preferred workflow is:
+
+- keep MuJoCo evaluation single-robot
+- use the same exported terrain instance from the source side
+- sweep multiple exported origins one by one
+
+This gives a much cleaner sim2sim comparison because:
+
+- terrain geometry is no longer guessed
+- spawn locations are no longer guessed
+- we can compare multiple sub-scenes from the same training terrain without adding multi-robot MuJoCo complexity too early
+
 ## Where To Look Next
 
 For the concrete current sim2sim workflow, use:
