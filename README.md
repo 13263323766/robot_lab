@@ -109,6 +109,15 @@ The next phase is:
 - compare behavior quality between Isaac playback and MuJoCo playback
 - decide what further transfer-oriented training changes are still necessary
 
+Current interpretation of the stair-climbing limitation:
+
+- the issue is not explained by sim2sim mismatch alone
+- in Isaac-side playback, the current Go2 policy can also climb lower stairs but fail on higher ones
+- this means the current policy already has a source-side stair-height capability boundary
+- the MuJoCo result should therefore be interpreted as:
+  - an existing policy capability limit
+  - further exposed by target-side geometry, contact, and dynamics differences
+
 ## Current Training Variants
 
 The branch now contains two transfer-oriented Go2 rough variants on the Isaac side:

@@ -68,6 +68,17 @@ Current working hypotheses for the next validation round:
 - task-distribution mismatch:
   - the policy may be robust enough to lift the front legs onto the stair but not yet robust enough to finish the full rear-leg transfer under the current MuJoCo target conditions
 
+Updated interpretation after checking Isaac-side playback:
+
+- this is not purely a sim2sim mismatch issue
+- in the source training environment, Go2 can also fail on higher stairs while succeeding on lower ones
+- this means the current policy already has a stair-height capability boundary in the source simulator
+- the current MuJoCo gap is therefore better interpreted as:
+  - policy capability limit on harder stairs
+  - plus target-side geometry / contact / dynamics differences that further expose that limit
+
+So the current failure mode should be treated as a combined effect, not blamed entirely on target-side mismatch.
+
 ## Model Zoo
 
 Current comparison set recorded in MuJoCo:
