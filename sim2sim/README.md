@@ -60,6 +60,10 @@ Current working hypotheses for the next validation round:
 - stair geometry mismatch:
   - the Isaac-side stair curriculum uses generator-based stairs with `step_width = 0.3` and `step_height_range = (0.05, 0.23)`
   - the current MuJoCo target scene uses hand-authored box obstacles, not the same stair distribution
+- stair tread-width mismatch:
+  - the stair-height difference in the current MuJoCo scene is largely within the Isaac training range
+  - however, the effective tread width / step spacing appears different from the training-side `step_width = 0.3`
+  - this may strongly affect rear-leg transfer and foothold timing on the stair
 - contact and friction mismatch:
   - Isaac training uses PhysX terrain materials plus material randomization
   - MuJoCo target side uses different geom friction and contact semantics
@@ -78,6 +82,8 @@ Updated interpretation after checking Isaac-side playback:
   - plus target-side geometry / contact / dynamics differences that further expose that limit
 
 So the current failure mode should be treated as a combined effect, not blamed entirely on target-side mismatch.
+
+At the current stage, the tread-width difference is recorded as a plausible contributor, but not yet identified as the primary cause.
 
 ## Model Zoo
 

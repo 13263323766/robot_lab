@@ -114,6 +114,8 @@ Current interpretation of the stair-climbing limitation:
 - the issue is not explained by sim2sim mismatch alone
 - in Isaac-side playback, the current Go2 policy can also climb lower stairs but fail on higher ones
 - this means the current policy already has a source-side stair-height capability boundary
+- the current MuJoCo stair-height difference appears to stay within the Isaac training stair-height range, so height alone is unlikely to explain the whole gap
+- stair tread width / step spacing is now considered another plausible factor and should be treated as one candidate cause in the next validation round
 - the MuJoCo result should therefore be interpreted as:
   - an existing policy capability limit
   - further exposed by target-side geometry, contact, and dynamics differences
