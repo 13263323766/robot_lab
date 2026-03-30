@@ -59,6 +59,7 @@ We are currently at this stage:
 4. A transfer-oriented Go2 rough training variant with `armature` has been added on the Isaac side.
 5. A second target-aligned Go2 rough task has been added to better match `unitree_mujoco` joint dynamics.
 6. The exported Go2 rough+armature policy can now be played and recorded in MuJoCo through the current `sim2sim` path.
+7. The latest target-aligned Go2 policy has also been recorded in MuJoCo and is now the main current reference artifact.
 
 So the branch is no longer at the “design checklist” stage. It has already reached:
 
@@ -69,13 +70,13 @@ So the branch is no longer at the “design checklist” stage. It has already r
 Current validated path:
 
 - source policy:
-  - `logs/rsl_rl/unitree_go2_rough_armature/2026-03-26_10-44-03_go2_rough_armature_full/exported/policy.onnx`
+  - `logs/rsl_rl/unitree_go2_rough_target/2026-03-27_17-00-12_go2_rough_target_4096_50k/exported/policy.onnx`
 - target scene:
   - `/data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml`
 - current sim2sim README:
   - [sim2sim/README.md](sim2sim/README.md)
 - current playback preview:
-  - [![go2_unitree_mujoco_rough_armature_track](sim2sim/videos/go2_unitree_mujoco_rough_armature_track.gif)](sim2sim/videos/go2_unitree_mujoco_rough_armature_track.mp4)
+  - [![go2_unitree_mujoco_rough_target_track](sim2sim/videos/go2_unitree_mujoco_rough_target_track.gif)](sim2sim/videos/go2_unitree_mujoco_rough_target_track.mp4)
 
 ## What This Branch Contains
 

@@ -21,13 +21,13 @@ The sim2sim path is now intentionally narrowed to a single practical route:
 Current validated example:
 
 - source policy:
-  - `logs/rsl_rl/unitree_go2_rough_armature/2026-03-26_10-44-03_go2_rough_armature_full/exported/policy.onnx`
+  - `logs/rsl_rl/unitree_go2_rough_target/2026-03-27_17-00-12_go2_rough_target_4096_50k/exported/policy.onnx`
 - target scene:
   - `/data2/sdam/unitree_mujoco/unitree_robots/go2/scene.xml`
 - preview:
-  - [![go2_unitree_mujoco_rough_armature_track](videos/go2_unitree_mujoco_rough_armature_track.gif)](videos/go2_unitree_mujoco_rough_armature_track.mp4)
+  - [![go2_unitree_mujoco_rough_target_track](videos/go2_unitree_mujoco_rough_target_track.gif)](videos/go2_unitree_mujoco_rough_target_track.mp4)
 - recorded playback:
-  - [go2_unitree_mujoco_rough_armature_track.mp4](videos/go2_unitree_mujoco_rough_armature_track.mp4)
+  - [go2_unitree_mujoco_rough_target_track.mp4](videos/go2_unitree_mujoco_rough_target_track.mp4)
 
 ## Current Training Alignment Work
 
@@ -42,6 +42,31 @@ Compared with the earlier `rough+armature` variant, this task keeps the same rou
 - actuator friction term as an approximation of target-side `frictionloss = 0.2`
 
 The intent is to reduce dynamics mismatch before exporting and validating the policy through this `sim2sim/` pipeline.
+
+## Latest Observation
+
+Latest recorded target-aligned playback:
+
+- [![go2_unitree_mujoco_rough_target_track](videos/go2_unitree_mujoco_rough_target_track.gif)](videos/go2_unitree_mujoco_rough_target_track.mp4)
+
+Observed behavior in the current `unitree_mujoco` scene:
+
+- Go2 can lift and place both front legs onto the stair
+- after the front half of the body reaches the stair, the robot tends to stall
+- the hind legs fail to climb onto the stair and the robot remains stuck in a quasi-static posture
+
+Current working hypotheses for the next validation round:
+
+- stair geometry mismatch:
+  - the Isaac-side stair curriculum uses generator-based stairs with `step_width = 0.3` and `step_height_range = (0.05, 0.23)`
+  - the current MuJoCo target scene uses hand-authored box obstacles, not the same stair distribution
+- contact and friction mismatch:
+  - Isaac training uses PhysX terrain materials plus material randomization
+  - MuJoCo target side uses different geom friction and contact semantics
+- residual controller / joint-dynamics mismatch:
+  - although `armature`, `damping`, and friction-like resistance were moved closer to the target side, the actuator and contact behavior are still not fully identical
+- task-distribution mismatch:
+  - the policy may be robust enough to lift the front legs onto the stair but not yet robust enough to finish the full rear-leg transfer under the current MuJoCo target conditions
 
 ## Model Zoo
 
