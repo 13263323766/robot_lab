@@ -245,6 +245,81 @@ PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
   --real-time
 ```
 
+If you want to remove command ambiguity during sim2sim validation, set the command explicitly:
+
+```bash
+--cmd-vx 0.5 --cmd-vy 0.0 --cmd-wz 0.0
+```
+
+For the current MuJoCo-side validation tools, the default command is already:
+
+- `cmd_vx = 0.5`
+- `cmd_vy = 0.0`
+- `cmd_wz = 0.0`
+
+So if Go2 still turns during sim2sim playback, the cause is more likely to be:
+
+- terrain asymmetry
+- contact asymmetry
+- initial-state asymmetry
+- or residual source/target dynamics mismatch
+
+End-to-end example for the current stairs-heavy target task:
+
+1. Export the exact terrain used during Isaac-side play:
+
+```bash
+use_robot_lab
+
+python scripts/reinforcement_learning/rsl_rl/play.py \
+  --task=RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-StairsHeavy-v0 \
+  --checkpoint=/data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/model_49999.pt \
+  --num_envs=1 \
+  --export-terrain-mesh=/data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj
+```
+
+2. Build a MuJoCo scene from that exported terrain:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/build_terrain_scene.py \
+  --terrain-mesh /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj \
+  --output-xml /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml
+```
+
+3. Validate one specific origin:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
+  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
+  --spawn-origin-index 0 \
+  --cmd-vx 0.5 \
+  --cmd-vy 0.0 \
+  --cmd-wz 0.0 \
+  --render \
+  --real-time
+```
+
+4. Sweep multiple origins on the same terrain:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/evaluate_origins.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
+  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
+  --index-start 0 \
+  --index-stop 20 \
+  --steps 500 \
+  --record-dir /data2/sdam/robot_lab/sim2sim/videos/origin_sweep_stairs_heavy \
+  --track-camera
+```
+
 Batch-evaluate multiple origins:
 
 ```bash
