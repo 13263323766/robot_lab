@@ -16,6 +16,17 @@ from sim2sim.backends import MujocoRobotInterface
 from sim2sim.policies import load_policy
 
 
+def _infer_spawn_points_path(origins_path: str | None, spawn_points_path: str | None) -> str | None:
+    if spawn_points_path is not None or origins_path is None:
+        return spawn_points_path
+    origins = Path(origins_path).expanduser().resolve()
+    if origins.name.endswith("_origins.npy"):
+        candidate = origins.with_name(origins.name.replace("_origins.npy", "_root_spawn.npy"))
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
 def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Play an exported Isaac Sim policy inside MuJoCo.")
     parser.add_argument("--policy", type=str, required=True, help="Path to exported TorchScript actor policy.")
@@ -56,6 +67,30 @@ def build_argparser() -> argparse.ArgumentParser:
         default=None,
         help="Flattened terrain-origin index to spawn the robot at on an exported Isaac terrain.",
     )
+    parser.add_argument(
+        "--spawn-points-path",
+        type=str,
+        default=None,
+        help="Optional .npy root spawn patches exported from Isaac play. Preferred over --origins-path.",
+    )
+    parser.add_argument(
+        "--spawn-point-index",
+        type=int,
+        default=None,
+        help="Flattened root-spawn patch index to use when --spawn-points-path is provided.",
+    )
+    parser.add_argument(
+        "--spawn-z-offset",
+        type=float,
+        default=0.0,
+        help="Additional z offset applied to the initial base position after scene/origin spawning.",
+    )
+    parser.add_argument(
+        "--spawn-clearance",
+        type=float,
+        default=0.05,
+        help="Default base clearance above the local terrain height.",
+    )
     return parser
 
 
@@ -84,6 +119,10 @@ def run_policy(
     camera_azimuth: float = 0.0,
     origins_path: str | None = None,
     spawn_origin_index: int | None = None,
+    spawn_points_path: str | None = None,
+    spawn_point_index: int | None = None,
+    spawn_z_offset: float = 0.0,
+    spawn_clearance: float = 0.05,
 ) -> None:
     import imageio.v2 as imageio
     import mujoco
@@ -105,7 +144,21 @@ def run_policy(
     interface.set_pd_gains(kp_gains, kd_gains)
 
     initial_base_pos = adapter.spec.initial_base_pos.copy()
-    if origins_path is not None:
+    resolved_spawn_points_path = _infer_spawn_points_path(origins_path, spawn_points_path)
+    if resolved_spawn_points_path is not None:
+        spawn_points = np.load(Path(resolved_spawn_points_path).expanduser().resolve())
+        flat_spawn_points = spawn_points.reshape(-1, 3)
+        if spawn_point_index is None:
+            if spawn_origin_index is not None:
+                spawn_point_index = spawn_origin_index
+            else:
+                raise ValueError("--spawn-point-index must be provided when root spawn points are used.")
+        if spawn_point_index < 0 or spawn_point_index >= len(flat_spawn_points):
+            raise IndexError(
+                f"spawn point index {spawn_point_index} out of bounds for {len(flat_spawn_points)} root spawn points"
+            )
+        initial_base_pos = initial_base_pos + flat_spawn_points[spawn_point_index].astype(np.float32)
+    elif origins_path is not None:
         origins = np.load(Path(origins_path).expanduser().resolve())
         flat_origins = origins.reshape(-1, 3)
         if spawn_origin_index is None:
@@ -115,6 +168,17 @@ def run_policy(
                 f"spawn origin index {spawn_origin_index} out of bounds for {len(flat_origins)} terrain origins"
             )
         initial_base_pos = initial_base_pos + flat_origins[spawn_origin_index].astype(np.float32)
+
+    base_height_reference = float(initial_base_pos[2])
+    ground_height = interface.query_ground_height(
+        float(initial_base_pos[0]),
+        float(initial_base_pos[1]),
+        z_start=max(base_height_reference + 5.0, 5.0),
+    )
+    initial_base_pos[2] = np.float32(ground_height + base_height_reference + spawn_clearance)
+
+    if spawn_z_offset != 0.0:
+        initial_base_pos[2] += np.float32(spawn_z_offset)
 
     interface.reset(
         initial_base_pos=initial_base_pos,
@@ -149,7 +213,15 @@ def run_policy(
     print(f"[sim2sim] actuators={interface.resolved_actuator_names}")
     print(f"[sim2sim] actuator_command_mode={interface.actuator_command_mode}")
     print(f"[sim2sim] initial_base_pos={initial_base_pos.tolist()}")
-    if origins_path is not None:
+    print(
+        f"[sim2sim] ground_height={ground_height:.4f}, base_height_reference={base_height_reference:.4f}, "
+        f"spawn_clearance={spawn_clearance:.4f}"
+    )
+    if spawn_z_offset != 0.0:
+        print(f"[sim2sim] spawn_z_offset={spawn_z_offset}")
+    if resolved_spawn_points_path is not None:
+        print(f"[sim2sim] spawn_points_path={resolved_spawn_points_path}, spawn_point_index={spawn_point_index}")
+    elif origins_path is not None:
         print(f"[sim2sim] origins_path={origins_path}, spawn_origin_index={spawn_origin_index}")
     if record_video is not None:
         print(f"[sim2sim] recording={str(record_path)}")
@@ -208,6 +280,10 @@ def main() -> None:
         camera_azimuth=args.camera_azimuth,
         origins_path=args.origins_path,
         spawn_origin_index=args.spawn_origin_index,
+        spawn_points_path=args.spawn_points_path,
+        spawn_point_index=args.spawn_point_index,
+        spawn_z_offset=args.spawn_z_offset,
+        spawn_clearance=args.spawn_clearance,
     )
 
 

@@ -29,6 +29,14 @@ Current validated example:
 - recorded playback:
   - [go2_unitree_mujoco_rough_target_track.mp4](videos/go2_unitree_mujoco_rough_target_track.mp4)
 
+Current recommended terrain workflow:
+
+- use the official Go2 model from `unitree_mujoco`
+- generate **MuJoCo-native terrain scenes** instead of reusing the full exported rough mesh as collision geometry
+- use `tools/build_stair_scene.py` for direct stair-parameter sweeps
+- use `tools/build_isaac_grid_scene.py` for an Isaac-compatible tiled terrain layout
+- keep source-side training aligned with the same stair parameter family
+
 ## Current Training Alignment Work
 
 On the Isaac side, the branch now also includes a target-aligned Go2 rough task:
@@ -57,6 +65,47 @@ This task keeps the current rough terrain curriculum enabled, but changes the te
 - `hf_pyramid_slope_inv = 0.05`
 
 The purpose is to raise stair exposure frequency in the source simulator without collapsing the task into a pure stairs-only training setup.
+
+## Current Terrain Path
+
+The current terrain work has converged to two practical MuJoCo-native scene builders:
+
+- `tools/build_stair_scene.py`
+  - single stair family scene
+  - good for directly sweeping `step_height`, `step_width`, `num_steps`, `platform_width`, and inverted stairs
+- `tools/build_isaac_grid_scene.py`
+  - tiled Isaac-compatible scene
+  - matches the current `play.py` logic more closely than the earlier full-mesh export route
+  - default layout mode is `play`, not `train`
+
+The most important alignment detail here is:
+
+- Isaac training terrain config uses `10 x 20` cells
+- but this repo's current Isaac `play.py` overrides terrain generation to:
+  - `num_rows = 5`
+  - `num_cols = 5`
+  - `curriculum = False`
+
+So for sim2sim playback, the recommended comparison target is now:
+
+- **Isaac play-like 5x5 tiled terrain**
+
+instead of the full training-time `10 x 20` terrain map.
+
+Latest play-like tiled playback preview:
+
+- [![go2_isaac_grid_play_like_track](videos/go2_isaac_grid_play_like_track.gif)](videos/go2_isaac_grid_play_like_track.mp4)
+- [go2_isaac_grid_play_like_track.mp4](videos/go2_isaac_grid_play_like_track.mp4)
+
+Current default spawn logic for generated terrains:
+
+- query the local terrain height under the robot root in MuJoCo
+- place the robot at:
+  - `local_ground_height + 0.335 + 0.05`
+- optional extra manual adjustment is still available through:
+  - `--spawn-z-offset`
+
+This was chosen because the root `z` is defined on the body, not on the feet, so terrain-relative spawning needs to preserve the Go2 body-height prior as well as a small clearance above the local terrain.
 
 ## Latest Observation
 
@@ -155,10 +204,10 @@ The current playback chain is:
   - inspect root body, joints, actuators
 - `tools/play_policy.py`
   - run and optionally record a policy
-- `tools/build_terrain_scene.py`
-  - wrap an exported Isaac terrain mesh into a MuJoCo scene XML
-- `tools/evaluate_origins.py`
-  - run the same policy over multiple exported terrain origins one by one
+- `tools/build_stair_scene.py`
+  - build parameterized MuJoCo stair scenes
+- `tools/build_isaac_grid_scene.py`
+  - build Isaac-compatible tiled terrain scenes in MuJoCo
 - `tools/validate_robot_policy.py`
   - inspect + play in one command
 - `adapters.py`
@@ -204,45 +253,81 @@ PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
   --track-camera
 ```
 
-Export the exact terrain mesh used during Isaac-side play:
-
-```bash
-use_robot_lab
-
-python scripts/reinforcement_learning/rsl_rl/play.py \
-  --task=RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-StairsHeavy-v0 \
-  --checkpoint=/data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/<run>/model_49999.pt \
-  --num_envs=1 \
-  --export-terrain-mesh=/data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj
-```
-
-This produces:
-
-- exported terrain mesh, for example `go2_target_stairs_heavy_play.obj`
-- terrain origins, for example `go2_target_stairs_heavy_play_origins.npy`
-- terrain metadata JSON beside the mesh
-
-Build a MuJoCo scene from that exported terrain:
+Build a parameterized stair scene close to the Isaac stair family:
 
 ```bash
 conda activate env_isaaclab
-PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/build_terrain_scene.py \
-  --terrain-mesh /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj \
-  --output-xml /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/build_stair_scene.py \
+  --output-xml /data2/sdam/robot_lab/sim2sim/scenes/go2_stairs_parametric.xml \
+  --step-height 0.15 \
+  --step-width 0.30 \
+  --num-steps 6 \
+  --platform-length 0.6
 ```
 
-Evaluate one origin at a time on the same exported training terrain:
+Validate a policy on that stair scene:
+
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/scenes/go2_stairs_parametric.xml \
+  --cmd-vx 0.5 \
+  --cmd-vy 0.0 \
+  --cmd-wz 0.0 \
+  --render \
+  --real-time
+```
+
+Record a video on the same scene:
 
 ```bash
 conda activate env_isaaclab
 PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
   --robot unitree_go2_unitree_mujoco \
-  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target/2026-03-27_17-00-12_go2_rough_target_4096_50k/exported/policy.onnx \
-  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
-  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
-  --spawn-origin-index 0 \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/scenes/go2_stairs_parametric.xml \
+  --steps 500 \
+  --record-video /data2/sdam/robot_lab/sim2sim/videos/go2_stairs_parametric.mp4 \
+  --track-camera
+```
+
+Build an Isaac-compatible tiled play-like terrain scene:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/build_isaac_grid_scene.py \
+  --output-xml /data2/sdam/robot_lab/sim2sim/scenes/go2_isaac_grid_play_like.xml \
+  --preset stairs-heavy \
+  --layout-mode play \
+  --seed 42
+```
+
+Validate a policy on that play-like tiled scene:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/scenes/go2_isaac_grid_play_like.xml \
   --render \
   --real-time
+```
+
+Record the same play-like tiled scene:
+
+```bash
+conda activate env_isaaclab
+PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
+  --robot unitree_go2_unitree_mujoco \
+  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
+  --xml-path /data2/sdam/robot_lab/sim2sim/scenes/go2_isaac_grid_play_like.xml \
+  --record-video /data2/sdam/robot_lab/sim2sim/videos/go2_isaac_grid_play_like_track.mp4 \
+  --track-camera \
+  --camera-distance 3.0 \
+  --camera-elevation -30 \
+  --camera-azimuth 0
 ```
 
 If you want to remove command ambiguity during sim2sim validation, set the command explicitly:
@@ -264,87 +349,12 @@ So if Go2 still turns during sim2sim playback, the cause is more likely to be:
 - initial-state asymmetry
 - or residual source/target dynamics mismatch
 
-End-to-end example for the current stairs-heavy target task:
-
-1. Export the exact terrain used during Isaac-side play:
-
-```bash
-use_robot_lab
-
-python scripts/reinforcement_learning/rsl_rl/play.py \
-  --task=RobotLab-Isaac-Velocity-Rough-Unitree-Go2-Target-StairsHeavy-v0 \
-  --checkpoint=/data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/model_49999.pt \
-  --num_envs=1 \
-  --export-terrain-mesh=/data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj
-```
-
-2. Build a MuJoCo scene from that exported terrain:
-
-```bash
-conda activate env_isaaclab
-PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/build_terrain_scene.py \
-  --terrain-mesh /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play.obj \
-  --output-xml /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml
-```
-
-3. Validate one specific origin:
-
-```bash
-conda activate env_isaaclab
-PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/validate_robot_policy.py \
-  --robot unitree_go2_unitree_mujoco \
-  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
-  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
-  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
-  --spawn-origin-index 0 \
-  --cmd-vx 0.5 \
-  --cmd-vy 0.0 \
-  --cmd-wz 0.0 \
-  --render \
-  --real-time
-```
-
-4. Sweep multiple origins on the same terrain:
-
-```bash
-conda activate env_isaaclab
-PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/evaluate_origins.py \
-  --robot unitree_go2_unitree_mujoco \
-  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target_stairs_heavy/2026-03-31_09-00-08_go2_rough_target_stairs_heavy_4096_50k/exported/policy.onnx \
-  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
-  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
-  --index-start 0 \
-  --index-stop 20 \
-  --steps 500 \
-  --record-dir /data2/sdam/robot_lab/sim2sim/videos/origin_sweep_stairs_heavy \
-  --track-camera
-```
-
-Batch-evaluate multiple origins:
-
-```bash
-conda activate env_isaaclab
-PYTHONPATH=/data2/sdam/robot_lab python sim2sim/tools/evaluate_origins.py \
-  --robot unitree_go2_unitree_mujoco \
-  --policy /data2/sdam/robot_lab/logs/rsl_rl/unitree_go2_rough_target/2026-03-27_17-00-12_go2_rough_target_4096_50k/exported/policy.onnx \
-  --xml-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_scene.xml \
-  --origins-path /data2/sdam/robot_lab/sim2sim/terrains/go2_target_stairs_heavy_play_origins.npy \
-  --index-start 0 \
-  --index-stop 20 \
-  --steps 500 \
-  --record-dir /data2/sdam/robot_lab/sim2sim/videos/origin_sweep \
-  --track-camera
-```
-
-This is the current preferred way to compare source and target behavior:
-
-- export the exact terrain instance used on the Isaac side
-- reuse that same terrain as a MuJoCo mesh
-- place one robot at one exported origin at a time
-- compare behavior across multiple origins instead of forcing a multi-robot MuJoCo scene first
-
 ## Current Notes
 
 - The old URDF-to-MJCF prototype path has been removed from the active workflow.
+- The older "export the full rough mesh and reuse it as MuJoCo collision terrain" path is no longer the recommended route.
 - The current recommended target is the official `unitree_mujoco` Go2 asset.
+- The current recommended terrain route is:
+  - direct parameterized stairs with `tools/build_stair_scene.py`
+  - or Isaac-compatible tiled play-like terrain with `tools/build_isaac_grid_scene.py`
 - The current branch focus is policy validation and controller alignment, not MuJoCo-side training.

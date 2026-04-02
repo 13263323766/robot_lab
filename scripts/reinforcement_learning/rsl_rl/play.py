@@ -89,6 +89,7 @@ from isaaclab.envs import (
 )
 from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.terrains import TerrainGenerator
+from isaaclab.terrains.sub_terrain_cfg import FlatPatchSamplingCfg
 from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
 
@@ -115,6 +116,20 @@ def export_terrain_mesh(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectM
 
     terrain_gen_cfg = terrain_cfg.terrain_generator.copy()
     terrain_gen_cfg.seed = seed
+    # Ensure we also export valid root spawn patches instead of only terrain cell origins.
+    # These patches are much closer to the actual safe spawn points used during Isaac-side play.
+    for sub_cfg in terrain_gen_cfg.sub_terrains.values():
+        flat_patch_sampling = dict(getattr(sub_cfg, "flat_patch_sampling", None) or {})
+        flat_patch_sampling.setdefault(
+            "root_spawn",
+            FlatPatchSamplingCfg(
+                num_patches=8,
+                patch_radius=0.5,
+                max_height_diff=0.05,
+            ),
+        )
+        sub_cfg.flat_patch_sampling = flat_patch_sampling
+
     generator = TerrainGenerator(cfg=terrain_gen_cfg, device="cpu")
 
     output = Path(output_path).expanduser().resolve()
@@ -122,19 +137,26 @@ def export_terrain_mesh(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectM
     generator.terrain_mesh.export(output)
 
     origins_path = output.with_name(f"{output.stem}_origins.npy")
+    spawn_points_path = output.with_name(f"{output.stem}_root_spawn.npy")
     metadata_path = output.with_suffix(".json")
     np.save(origins_path, generator.terrain_origins)
+    root_spawn = generator.flat_patches.get("root_spawn")
+    if root_spawn is not None:
+        np.save(spawn_points_path, root_spawn.detach().cpu().numpy())
 
     metadata = {
         "seed": seed,
         "mesh_path": str(output),
         "origins_path": str(origins_path),
+        "root_spawn_path": str(spawn_points_path) if root_spawn is not None else None,
         "terrain_type": terrain_cfg.terrain_type,
         "curriculum": bool(terrain_gen_cfg.curriculum),
         "difficulty_range": list(terrain_gen_cfg.difficulty_range),
         "num_rows": int(terrain_gen_cfg.num_rows),
         "num_cols": int(terrain_gen_cfg.num_cols),
         "size": list(terrain_gen_cfg.size),
+        "horizontal_scale": float(terrain_gen_cfg.horizontal_scale),
+        "vertical_scale": float(terrain_gen_cfg.vertical_scale),
         "border_width": float(terrain_gen_cfg.border_width),
         "sub_terrains": {
             name: {
@@ -149,6 +171,8 @@ def export_terrain_mesh(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectM
     metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     print(f"[INFO] Exported terrain mesh to: {output}")
     print(f"[INFO] Exported terrain origins to: {origins_path}")
+    if root_spawn is not None:
+        print(f"[INFO] Exported terrain root spawn patches to: {spawn_points_path}")
     print(f"[INFO] Exported terrain metadata to: {metadata_path}")
 
 

@@ -131,6 +131,25 @@ class MujocoRobotInterface:
         self.data.qpos[self.joint_qpos_ids] = default_joint_pos
         mujoco.mj_forward(self.model, self.data)
 
+    def query_ground_height(self, x: float, y: float, z_start: float = 5.0) -> float:
+        geomgroup = np.ones(6, dtype=np.uint8)
+        geomid = np.asarray([-1], dtype=np.int32)
+        point = np.asarray([x, y, z_start], dtype=np.float64)
+        direction = np.asarray([0.0, 0.0, -1.0], dtype=np.float64)
+        distance = mujoco.mj_ray(
+            self.model,
+            self.data,
+            point,
+            direction,
+            geomgroup,
+            1,
+            self.root_body_id,
+            geomid,
+        )
+        if not np.isfinite(distance) or distance < 0.0:
+            raise RuntimeError(f"Failed to query ground height at x={x}, y={y}, z_start={z_start}")
+        return float(z_start - distance)
+
     def set_pd_gains(self, kp: np.ndarray, kd: np.ndarray) -> None:
         if kp.shape != (self.action_dim,) or kd.shape != (self.action_dim,):
             raise ValueError("PD gain shapes must match action dimension")

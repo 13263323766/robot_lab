@@ -57,6 +57,30 @@ def build_argparser() -> argparse.ArgumentParser:
         default=None,
         help="Flattened terrain-origin index to spawn the robot at on an exported Isaac terrain.",
     )
+    parser.add_argument(
+        "--spawn-points-path",
+        type=str,
+        default=None,
+        help="Optional .npy root spawn patches exported from Isaac play. Preferred over --origins-path.",
+    )
+    parser.add_argument(
+        "--spawn-point-index",
+        type=int,
+        default=None,
+        help="Flattened root-spawn patch index to use when --spawn-points-path is provided.",
+    )
+    parser.add_argument(
+        "--spawn-z-offset",
+        type=float,
+        default=0.0,
+        help="Additional z offset applied to the initial base position after scene/origin spawning.",
+    )
+    parser.add_argument(
+        "--spawn-clearance",
+        type=float,
+        default=0.05,
+        help="Default base clearance above the local terrain height.",
+    )
     return parser
 
 
@@ -93,6 +117,10 @@ def main() -> None:
         camera_azimuth=args.camera_azimuth,
         origins_path=args.origins_path,
         spawn_origin_index=args.spawn_origin_index,
+        spawn_points_path=args.spawn_points_path,
+        spawn_point_index=args.spawn_point_index,
+        spawn_z_offset=args.spawn_z_offset,
+        spawn_clearance=args.spawn_clearance,
     )
 
 
