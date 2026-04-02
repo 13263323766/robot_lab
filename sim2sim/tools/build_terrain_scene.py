@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 
 
@@ -60,6 +61,22 @@ def build_argparser() -> argparse.ArgumentParser:
     return parser
 
 
+def _write_resolved_go2_xml(go2_xml: Path, output_xml: Path) -> Path:
+    go2_text = go2_xml.read_text(encoding="utf-8")
+    asset_dir = (go2_xml.parent / "assets").resolve()
+
+    go2_text = re.sub(r'<compiler[^>]*meshdir="[^"]*"[^>]*/>', '<compiler angle="radian" autolimits="true" />', go2_text)
+    go2_text = re.sub(
+        r'file="([^"]+)"',
+        lambda m: f'file="{(asset_dir / m.group(1)).resolve().as_posix()}"',
+        go2_text,
+    )
+
+    resolved_go2_xml = output_xml.with_name(f"{output_xml.stem}_go2_resolved.xml")
+    resolved_go2_xml.write_text(go2_text, encoding="utf-8")
+    return resolved_go2_xml
+
+
 def build_scene_xml(terrain_mesh: Path, output_xml: Path, go2_xml: Path, friction: tuple[float, float, float], condim: int) -> Path:
     terrain_mesh = terrain_mesh.expanduser().resolve()
     output_xml = output_xml.expanduser().resolve()
@@ -71,8 +88,9 @@ def build_scene_xml(terrain_mesh: Path, output_xml: Path, go2_xml: Path, frictio
         raise FileNotFoundError(f"Go2 XML not found: {go2_xml}")
 
     output_xml.parent.mkdir(parents=True, exist_ok=True)
+    resolved_go2_xml = _write_resolved_go2_xml(go2_xml, output_xml)
     scene_text = SCENE_TEMPLATE.format(
-        go2_xml=go2_xml.as_posix(),
+        go2_xml=resolved_go2_xml.as_posix(),
         terrain_mesh=terrain_mesh.as_posix(),
         friction0=friction[0],
         friction1=friction[1],

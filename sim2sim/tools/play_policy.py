@@ -9,6 +9,8 @@ import argparse
 import time
 from pathlib import Path
 
+import numpy as np
+
 from sim2sim import Sim2SimCommand, make_robot_adapter
 from sim2sim.backends import MujocoRobotInterface
 from sim2sim.policies import load_policy

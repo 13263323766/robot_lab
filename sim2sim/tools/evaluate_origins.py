@@ -54,28 +54,32 @@ def main() -> None:
         if args.record_dir is not None:
             record_path = str(args.record_dir / f"origin_{index:04d}.mp4")
         print(f"[sim2sim] evaluating origin index {index}")
-        run_policy(
-            policy_path=args.policy,
-            xml_path=args.xml_path,
-            robot=args.robot,
-            sim_dt=args.sim_dt,
-            control_dt=args.control_dt,
-            steps=args.steps,
-            cmd_vx=args.cmd_vx,
-            cmd_vy=args.cmd_vy,
-            cmd_wz=args.cmd_wz,
-            kp=args.kp,
-            kd=args.kd,
-            render=False,
-            real_time=False,
-            record_video=record_path,
-            track_camera=args.track_camera,
-            camera_distance=args.camera_distance,
-            camera_elevation=args.camera_elevation,
-            camera_azimuth=args.camera_azimuth,
-            origins_path=str(args.origins_path),
-            spawn_origin_index=index,
-        )
+        try:
+            run_policy(
+                policy_path=args.policy,
+                xml_path=args.xml_path,
+                robot=args.robot,
+                sim_dt=args.sim_dt,
+                control_dt=args.control_dt,
+                steps=args.steps,
+                cmd_vx=args.cmd_vx,
+                cmd_vy=args.cmd_vy,
+                cmd_wz=args.cmd_wz,
+                kp=args.kp,
+                kd=args.kd,
+                render=False,
+                real_time=False,
+                record_video=record_path,
+                track_camera=args.track_camera,
+                camera_distance=args.camera_distance,
+                camera_elevation=args.camera_elevation,
+                camera_azimuth=args.camera_azimuth,
+                origins_path=str(args.origins_path),
+                spawn_origin_index=index,
+            )
+            print(f"[sim2sim] origin {index} completed")
+        except Exception as exc:  # pragma: no cover - runtime guard for long sweeps
+            print(f"[sim2sim] origin {index} failed: {exc}")
 
 
 if __name__ == "__main__":
