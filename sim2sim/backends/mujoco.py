@@ -132,6 +132,7 @@ class MujocoRobotInterface:
         mujoco.mj_forward(self.model, self.data)
 
     def query_ground_height(self, x: float, y: float, z_start: float = 5.0) -> float:
+        mujoco.mj_forward(self.model, self.data)
         geomgroup = np.ones(6, dtype=np.uint8)
         geomid = np.asarray([-1], dtype=np.int32)
         point = np.asarray([x, y, z_start], dtype=np.float64)

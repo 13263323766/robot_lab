@@ -77,6 +77,11 @@ Current validated path:
   - [sim2sim/README.md](sim2sim/README.md)
 - current playback preview:
   - [![go2_unitree_mujoco_rough_target_track](sim2sim/videos/go2_unitree_mujoco_rough_target_track.gif)](sim2sim/videos/go2_unitree_mujoco_rough_target_track.mp4)
+- current flat-ground heading-command comparison:
+  - no heading hold:
+    - [![go2_flat_no_heading_hold](sim2sim/videos/go2_flat_no_heading_hold.gif)](sim2sim/videos/go2_flat_no_heading_hold.mp4)
+  - with heading hold:
+    - [![go2_flat_with_heading_hold](sim2sim/videos/go2_flat_with_heading_hold.gif)](sim2sim/videos/go2_flat_with_heading_hold.mp4)
 
 ## What This Branch Contains
 
@@ -108,6 +113,13 @@ The next phase is:
 - continue improving controller/model alignment
 - compare behavior quality between Isaac playback and MuJoCo playback
 - decide what further transfer-oriented training changes are still necessary
+
+One concrete alignment issue identified in this branch is command semantics:
+
+- Isaac-side locomotion playback uses `heading_command=True`
+- so the third command component is not simply a fixed user-provided yaw-rate at all times
+- a `heading-hold` option has now been added to the MuJoCo sim2sim path to emulate this behavior
+- on flat ground, this noticeably improves straight-line walking compared with the earlier fixed-`cmd_wz=0` playback
 
 Current interpretation of the stair-climbing limitation:
 

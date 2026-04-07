@@ -27,6 +27,25 @@ def _infer_spawn_points_path(origins_path: str | None, spawn_points_path: str | 
     return None
 
 
+def _cell_center(row: int, col: int, num_rows: int, num_cols: int, size_x: float, size_y: float) -> np.ndarray:
+    total_x = num_rows * size_x
+    total_y = num_cols * size_y
+    cx = (row + 0.5) * size_x - 0.5 * total_x
+    cy = (col + 0.5) * size_y - 0.5 * total_y
+    return np.asarray([cx, cy, 0.0], dtype=np.float32)
+
+
+def _quat_wxyz_to_yaw(quat_wxyz: np.ndarray) -> float:
+    w, x, y, z = [float(v) for v in quat_wxyz]
+    siny_cosp = 2.0 * (w * z + x * y)
+    cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+    return float(np.arctan2(siny_cosp, cosy_cosp))
+
+
+def _wrap_to_pi(angle: float) -> float:
+    return float((angle + np.pi) % (2.0 * np.pi) - np.pi)
+
+
 def build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Play an exported Isaac Sim policy inside MuJoCo.")
     parser.add_argument("--policy", type=str, required=True, help="Path to exported TorchScript actor policy.")
@@ -88,8 +107,37 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--spawn-clearance",
         type=float,
-        default=0.05,
+        default=0.10,
         help="Default base clearance above the local terrain height.",
+    )
+    parser.add_argument("--spawn-row", type=int, default=None, help="Spawn the robot at a specific tiled terrain row.")
+    parser.add_argument("--spawn-col", type=int, default=None, help="Spawn the robot at a specific tiled terrain col.")
+    parser.add_argument("--terrain-num-rows", type=int, default=5, help="Number of terrain rows for tiled scene spawn.")
+    parser.add_argument("--terrain-num-cols", type=int, default=5, help="Number of terrain cols for tiled scene spawn.")
+    parser.add_argument("--terrain-size-x", type=float, default=8.0, help="Per-cell terrain size in x.")
+    parser.add_argument("--terrain-size-y", type=float, default=8.0, help="Per-cell terrain size in y.")
+    parser.add_argument(
+        "--heading-hold",
+        action="store_true",
+        help="Emulate Isaac heading_command=True by converting heading error into cmd_wz online.",
+    )
+    parser.add_argument(
+        "--heading-target",
+        type=float,
+        default=None,
+        help="Optional world-frame yaw target in radians for --heading-hold. Defaults to the initial base yaw.",
+    )
+    parser.add_argument(
+        "--heading-kp",
+        type=float,
+        default=0.5,
+        help="Heading proportional gain used by --heading-hold.",
+    )
+    parser.add_argument(
+        "--heading-max-wz",
+        type=float,
+        default=1.0,
+        help="Absolute cmd_wz clip used by --heading-hold.",
     )
     return parser
 
@@ -122,7 +170,17 @@ def run_policy(
     spawn_points_path: str | None = None,
     spawn_point_index: int | None = None,
     spawn_z_offset: float = 0.0,
-    spawn_clearance: float = 0.05,
+    spawn_clearance: float = 0.10,
+    spawn_row: int | None = None,
+    spawn_col: int | None = None,
+    terrain_num_rows: int = 5,
+    terrain_num_cols: int = 5,
+    terrain_size_x: float = 8.0,
+    terrain_size_y: float = 8.0,
+    heading_hold: bool = False,
+    heading_target: float | None = None,
+    heading_kp: float = 0.5,
+    heading_max_wz: float = 1.0,
 ) -> None:
     import imageio.v2 as imageio
     import mujoco
@@ -144,6 +202,17 @@ def run_policy(
     interface.set_pd_gains(kp_gains, kd_gains)
 
     initial_base_pos = adapter.spec.initial_base_pos.copy()
+    if (spawn_row is None) != (spawn_col is None):
+        raise ValueError("--spawn-row and --spawn-col must be provided together.")
+    if spawn_row is not None and spawn_col is not None:
+        if not (0 <= spawn_row < terrain_num_rows and 0 <= spawn_col < terrain_num_cols):
+            raise IndexError(
+                f"spawn cell ({spawn_row}, {spawn_col}) out of bounds for terrain grid "
+                f"{terrain_num_rows}x{terrain_num_cols}"
+            )
+        initial_base_pos = initial_base_pos + _cell_center(
+            spawn_row, spawn_col, terrain_num_rows, terrain_num_cols, terrain_size_x, terrain_size_y
+        )
     resolved_spawn_points_path = _infer_spawn_points_path(origins_path, spawn_points_path)
     if resolved_spawn_points_path is not None:
         spawn_points = np.load(Path(resolved_spawn_points_path).expanduser().resolve())
@@ -186,6 +255,8 @@ def run_policy(
         default_joint_pos=adapter.spec.default_joint_pos,
     )
 
+    initial_yaw = _quat_wxyz_to_yaw(interface.get_base_quat_wxyz())
+    resolved_heading_target = initial_yaw if heading_target is None else float(heading_target)
     command = Sim2SimCommand(cmd_vx, cmd_vy, cmd_wz)
     last_action = adapter.spec.zero_action()
     viewer = interface.render() if render else None
@@ -219,16 +290,31 @@ def run_policy(
     )
     if spawn_z_offset != 0.0:
         print(f"[sim2sim] spawn_z_offset={spawn_z_offset}")
+    if spawn_row is not None and spawn_col is not None:
+        print(
+            f"[sim2sim] spawn_cell=({spawn_row}, {spawn_col}) "
+            f"terrain_grid={terrain_num_rows}x{terrain_num_cols} cell_size=({terrain_size_x}, {terrain_size_y})"
+        )
     if resolved_spawn_points_path is not None:
         print(f"[sim2sim] spawn_points_path={resolved_spawn_points_path}, spawn_point_index={spawn_point_index}")
     elif origins_path is not None:
         print(f"[sim2sim] origins_path={origins_path}, spawn_origin_index={spawn_origin_index}")
     if record_video is not None:
         print(f"[sim2sim] recording={str(record_path)}")
+    if heading_hold:
+        print(
+            f"[sim2sim] heading_hold=true target_yaw={resolved_heading_target:.4f} "
+            f"heading_kp={heading_kp:.3f} heading_max_wz={heading_max_wz:.3f}"
+        )
 
     try:
         for _ in range(steps):
             start = time.time()
+            if heading_hold:
+                current_yaw = _quat_wxyz_to_yaw(interface.get_base_quat_wxyz())
+                heading_error = _wrap_to_pi(resolved_heading_target - current_yaw)
+                commanded_wz = float(np.clip(heading_kp * heading_error, -heading_max_wz, heading_max_wz))
+                command = Sim2SimCommand(cmd_vx, cmd_vy, commanded_wz)
             obs = adapter.build_actor_observation(interface, command, last_action)
             action = policy(obs)
             target_pos = adapter.action_to_target_pos(action)
@@ -284,6 +370,16 @@ def main() -> None:
         spawn_point_index=args.spawn_point_index,
         spawn_z_offset=args.spawn_z_offset,
         spawn_clearance=args.spawn_clearance,
+        spawn_row=args.spawn_row,
+        spawn_col=args.spawn_col,
+        terrain_num_rows=args.terrain_num_rows,
+        terrain_num_cols=args.terrain_num_cols,
+        terrain_size_x=args.terrain_size_x,
+        terrain_size_y=args.terrain_size_y,
+        heading_hold=args.heading_hold,
+        heading_target=args.heading_target,
+        heading_kp=args.heading_kp,
+        heading_max_wz=args.heading_max_wz,
     )
 
 

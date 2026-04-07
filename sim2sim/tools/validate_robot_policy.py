@@ -78,8 +78,32 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--spawn-clearance",
         type=float,
-        default=0.05,
+        default=0.10,
         help="Default base clearance above the local terrain height.",
+    )
+    parser.add_argument("--spawn-row", type=int, default=None, help="Spawn the robot at a specific tiled terrain row.")
+    parser.add_argument("--spawn-col", type=int, default=None, help="Spawn the robot at a specific tiled terrain col.")
+    parser.add_argument("--terrain-num-rows", type=int, default=5, help="Number of terrain rows for tiled scene spawn.")
+    parser.add_argument("--terrain-num-cols", type=int, default=5, help="Number of terrain cols for tiled scene spawn.")
+    parser.add_argument("--terrain-size-x", type=float, default=8.0, help="Per-cell terrain size in x.")
+    parser.add_argument("--terrain-size-y", type=float, default=8.0, help="Per-cell terrain size in y.")
+    parser.add_argument(
+        "--heading-hold",
+        action="store_true",
+        help="Emulate Isaac heading_command=True by converting heading error into cmd_wz online.",
+    )
+    parser.add_argument(
+        "--heading-target",
+        type=float,
+        default=None,
+        help="Optional world-frame yaw target in radians for --heading-hold. Defaults to the initial base yaw.",
+    )
+    parser.add_argument("--heading-kp", type=float, default=0.5, help="Heading proportional gain for --heading-hold.")
+    parser.add_argument(
+        "--heading-max-wz",
+        type=float,
+        default=1.0,
+        help="Absolute cmd_wz clip used by --heading-hold.",
     )
     return parser
 
@@ -121,6 +145,16 @@ def main() -> None:
         spawn_point_index=args.spawn_point_index,
         spawn_z_offset=args.spawn_z_offset,
         spawn_clearance=args.spawn_clearance,
+        spawn_row=args.spawn_row,
+        spawn_col=args.spawn_col,
+        terrain_num_rows=args.terrain_num_rows,
+        terrain_num_cols=args.terrain_num_cols,
+        terrain_size_x=args.terrain_size_x,
+        terrain_size_y=args.terrain_size_y,
+        heading_hold=args.heading_hold,
+        heading_target=args.heading_target,
+        heading_kp=args.heading_kp,
+        heading_max_wz=args.heading_max_wz,
     )
 
 

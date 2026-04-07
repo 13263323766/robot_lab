@@ -29,6 +29,15 @@ Current validated example:
 - recorded playback:
   - [go2_unitree_mujoco_rough_target_track.mp4](videos/go2_unitree_mujoco_rough_target_track.mp4)
 
+Current flat-ground command-semantics comparison:
+
+- no heading hold:
+  - [![go2_flat_no_heading_hold](videos/go2_flat_no_heading_hold.gif)](videos/go2_flat_no_heading_hold.mp4)
+- with heading hold:
+  - [![go2_flat_with_heading_hold](videos/go2_flat_with_heading_hold.gif)](videos/go2_flat_with_heading_hold.mp4)
+
+This comparison is important because the Isaac-side command generator uses `heading_command=True`, so the policy is not trained only on a fixed externally supplied `cmd_wz`. In the current MuJoCo playback path, enabling `--heading-hold` makes the command semantics much closer to source-side playback, and the Go2 correspondingly walks much straighter on flat ground.
+
 Current recommended terrain workflow:
 
 - use the official Go2 model from `unitree_mujoco`
@@ -101,11 +110,18 @@ Current default spawn logic for generated terrains:
 
 - query the local terrain height under the robot root in MuJoCo
 - place the robot at:
-  - `local_ground_height + 0.335 + 0.05`
+  - `local_ground_height + 0.335 + 0.10`
 - optional extra manual adjustment is still available through:
   - `--spawn-z-offset`
 
 This was chosen because the root `z` is defined on the body, not on the feet, so terrain-relative spawning needs to preserve the Go2 body-height prior as well as a small clearance above the local terrain.
+
+The current tiled-terrain playback path also supports selecting a specific terrain cell directly from the command line:
+
+- `--spawn-row`
+- `--spawn-col`
+
+This keeps the workflow single-robot and makes it easier to compare the same policy across different tiled terrain regions without switching to a multi-robot playback design.
 
 ## Latest Observation
 
@@ -187,6 +203,17 @@ The current Go2 adapter is aligned to the Isaac training setup on these points:
   - `effort_limit = 23.5`
   - `velocity_limit = 30.0`
   - `saturation_effort = 23.5`
+
+The current playback path also supports an optional command-mode alignment feature:
+
+- `--heading-hold`
+  - emulates the Isaac `heading_command=True` behavior by converting heading error into `cmd_wz` online
+  - default gain:
+    - `heading_kp = 0.5`
+  - default clip:
+    - `heading_max_wz = 1.0`
+
+This option was added after observing that the Go2 could walk in a large circle on flat ground even with `cmd_wz = 0.0`, while the same policy became much straighter once heading-command semantics were restored.
 
 The current playback chain is:
 
