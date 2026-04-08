@@ -65,6 +65,26 @@ So the branch is no longer at the “design checklist” stage. It has already r
 
 - `Isaac training -> exported policy -> MuJoCo playback -> recorded artifact`
 
+## Current Stop Point
+
+For the current Go2 line, this branch is now intentionally treated as a temporary stopping point.
+
+The reason is practical:
+
+- the Go2 training pipeline is already stable
+- the Go2 MuJoCo sim2sim path is already usable
+- the main command-semantics mismatch around `heading_command=True` has been identified and corrected on the playback side
+- the current stair-climbing capability is already good enough for this stage of the project
+
+So the next goal is no longer to keep pushing the Go2 branch indefinitely.
+
+Instead, the current plan is:
+
+- keep the Go2 training and sim2sim results here as the completed quadruped baseline
+- stop adding large new Go2-specific training complexity for now
+- reuse the current `sim2sim/` framework on other robots next
+- prioritize humanoid robots for the next round of transfer work, where terrain perception and richer task shaping are expected to matter more
+
 ## Current Status Summary
 
 Current validated path:
@@ -192,3 +212,8 @@ For the concrete current sim2sim workflow, use:
 For earlier training runs and baseline behavior, use:
 
 - `exp/go2-train`
+
+For the next phase of work, the intent is:
+
+- keep Go2 as the current validated reference
+- move the framework forward on humanoid robots instead of continuing to heavily expand the Go2 branch

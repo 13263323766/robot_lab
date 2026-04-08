@@ -18,6 +18,15 @@ The sim2sim path is now intentionally narrowed to a single practical route:
 - play exported `.onnx` / `.pt` policies inside MuJoCo
 - support video recording for sharing results
 
+At the current project stage, the Go2 line is treated as a completed first-pass baseline rather than an endlessly expanding target.
+
+In practice, this means:
+
+- Go2 training-side exploration has reached a good enough stopping point for now
+- Go2 MuJoCo sim2sim validation is already usable and documented
+- the remaining ideas for Go2 are now lower priority than applying the framework to new robot families
+- the next intended use of this framework is on humanoid robots, where richer perception and more difficult contact/terrain behavior are expected to provide higher research value
+
 Current validated example:
 
 - source policy:
@@ -37,6 +46,13 @@ Current flat-ground command-semantics comparison:
   - [![go2_flat_with_heading_hold](videos/go2_flat_with_heading_hold.gif)](videos/go2_flat_with_heading_hold.mp4)
 
 This comparison is important because the Isaac-side command generator uses `heading_command=True`, so the policy is not trained only on a fixed externally supplied `cmd_wz`. In the current MuJoCo playback path, enabling `--heading-hold` makes the command semantics much closer to source-side playback, and the Go2 correspondingly walks much straighter on flat ground.
+
+This command-semantics fix is also one of the reasons the current Go2 sim2sim work is considered sufficiently mature for a stage break:
+
+- the main playback path is working
+- the main command mismatch has been identified and corrected
+- the branch now has concrete recorded artifacts for both stair behavior and flat-ground heading behavior
+- so the next effort is better spent broadening the framework to new robots rather than continuing to add many more Go2-specific branches
 
 Current recommended terrain workflow:
 
@@ -243,6 +259,15 @@ The current playback chain is:
   - `.onnx` / `.pt` loaders
 - `registry.py`
   - top-level robot registry
+
+## Current Decision
+
+Current project decision for this directory:
+
+- stop the Go2-specific training and sim2sim expansion here for now
+- keep the present Go2 path as the validated quadruped baseline
+- use the same sim2sim framework structure on other robots next
+- prioritize humanoid robots for the next round of transfer experiments
 
 ## Usage
 
