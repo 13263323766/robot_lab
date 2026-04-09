@@ -42,6 +42,8 @@ class Sim2SimRobotSpec:
     initial_base_quat_wxyz: np.ndarray
     control_dt: float
     actor_obs_dim: int
+    default_kp: np.ndarray | None = None
+    default_kd: np.ndarray | None = None
 
     def zero_action(self) -> np.ndarray:
         return np.zeros(len(self.joint_names), dtype=np.float32)
@@ -51,6 +53,18 @@ class Sim2SimRobotSpec:
         return (
             np.full(size, kp, dtype=np.float64),
             np.full(size, kd, dtype=np.float64),
+        )
+
+    def resolve_gains(self, kp: float | None, kd: float | None) -> tuple[np.ndarray, np.ndarray]:
+        if kp is not None and kd is not None:
+            return self.make_uniform_gains(kp, kd)
+        if self.default_kp is None or self.default_kd is None:
+            if kp is None or kd is None:
+                raise ValueError("Robot spec has no default PD gains; pass both kp and kd explicitly.")
+            return self.make_uniform_gains(kp, kd)
+        return (
+            self.default_kp.astype(np.float64).copy(),
+            self.default_kd.astype(np.float64).copy(),
         )
 
 

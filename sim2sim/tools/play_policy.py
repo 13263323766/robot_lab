@@ -62,8 +62,8 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--cmd-vx", type=float, default=0.5, help="Forward velocity command.")
     parser.add_argument("--cmd-vy", type=float, default=0.0, help="Lateral velocity command.")
     parser.add_argument("--cmd-wz", type=float, default=0.0, help="Yaw-rate command.")
-    parser.add_argument("--kp", type=float, default=25.0, help="Uniform proportional gain for all joints.")
-    parser.add_argument("--kd", type=float, default=0.5, help="Uniform derivative gain for all joints.")
+    parser.add_argument("--kp", type=float, default=None, help="Optional uniform proportional gain override.")
+    parser.add_argument("--kd", type=float, default=None, help="Optional uniform derivative gain override.")
     parser.add_argument("--render", action="store_true", help="Launch passive MuJoCo viewer.")
     parser.add_argument("--real-time", action="store_true", help="Sleep to approximate real-time playback.")
     parser.add_argument("--record-video", type=str, default=None, help="Optional mp4 output path for offscreen recording.")
@@ -153,8 +153,8 @@ def run_policy(
     cmd_vx: float = 0.5,
     cmd_vy: float = 0.0,
     cmd_wz: float = 0.0,
-    kp: float = 25.0,
-    kd: float = 0.5,
+    kp: float | None = None,
+    kd: float | None = None,
     render: bool = False,
     real_time: bool = False,
     record_video: str | None = None,
@@ -198,7 +198,7 @@ def run_policy(
         sim_dt=sim_dt,
         control_dt=control_dt,
     )
-    kp_gains, kd_gains = adapter.spec.make_uniform_gains(kp, kd)
+    kp_gains, kd_gains = adapter.spec.resolve_gains(kp, kd)
     interface.set_pd_gains(kp_gains, kd_gains)
 
     initial_base_pos = adapter.spec.initial_base_pos.copy()

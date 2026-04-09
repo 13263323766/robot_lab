@@ -8,6 +8,11 @@ from __future__ import annotations
 from sim2sim.adapters import Sim2SimAdapter
 from sim2sim.common import MujocoRobotAssetCfg
 
+from .unitree_g1 import make_unitree_g1_unitree_mujoco_adapter
+from .unitree_g1_asset import (
+    UNITREE_MUJOCO_G1_ASSET_CFG,
+    get_g1_unitree_mujoco_asset_cfg,
+)
 from .unitree_go2 import make_unitree_go2_unitree_mujoco_adapter
 from .unitree_go2_asset import (
     UNITREE_MUJOCO_GO2_ASSET_CFG,
@@ -16,9 +21,11 @@ from .unitree_go2_asset import (
 
 
 ROBOT_ADAPTER_FACTORIES: dict[str, callable] = {
+    "unitree_g1_unitree_mujoco": make_unitree_g1_unitree_mujoco_adapter,
     "unitree_go2_unitree_mujoco": make_unitree_go2_unitree_mujoco_adapter,
 }
 ROBOT_ASSET_FACTORIES: dict[str, callable] = {
+    "unitree_g1_unitree_mujoco": get_g1_unitree_mujoco_asset_cfg,
     "unitree_go2_unitree_mujoco": get_go2_unitree_mujoco_asset_cfg,
 }
 
@@ -40,11 +47,14 @@ def get_robot_asset_cfg(robot_name: str) -> MujocoRobotAssetCfg:
 
 
 __all__ = [
+    "UNITREE_MUJOCO_G1_ASSET_CFG",
     "UNITREE_MUJOCO_GO2_ASSET_CFG",
     "ROBOT_ADAPTER_FACTORIES",
     "ROBOT_ASSET_FACTORIES",
+    "get_g1_unitree_mujoco_asset_cfg",
     "get_robot_asset_cfg",
     "get_go2_unitree_mujoco_asset_cfg",
     "make_robot_adapter",
+    "make_unitree_g1_unitree_mujoco_adapter",
     "make_unitree_go2_unitree_mujoco_adapter",
 ]
